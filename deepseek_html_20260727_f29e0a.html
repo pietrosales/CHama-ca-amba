@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chama Caçamba — Gestão</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script>
+        function loadGoogleMaps() {
+            const key = localStorage.getItem('chama_cacamba_api_key') || '';
+            if (!key) return;
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=directions&callback=initMap&v=weekly`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        }
+        let directionsService = null;
+        let directionsRenderer = null;
+        let map = null;
+        function initMap() {
+            directionsService = new google.maps.DirectionsService();
+            const mapDiv = document.createElement('div');
+            mapDiv.id = 'map';
+            mapDiv.style.width = '100%';
+            mapDiv.style.height = '300px';
+            mapDiv.style.marginTop = '1rem';
+            mapDiv.style.borderRadius = '12px';
+            mapDiv.style.overflow = 'hidden';
+            mapDiv.style.display = 'none';
+            const resultDiv = document.getElementById('routeResult');
+            resultDiv.parentNode.insertBefore(mapDiv, resultDiv.nextSibling);
+            map = new google.maps.Map(mapDiv, { zoom: 12, center: { lat: -23.5505, lng: -46.6333 } });
+            directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false });
+        }
+        document.addEventListener('DOMContentLoaded', () => { loadGoogleMaps(); });
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f4f2ed; --card: #ffffff; --border: #d6d0c4; --text: #2c2a28;
+            --text-light: #6b655a; --primary: #b86b3a; --primary-light: #d99b70;
+            --primary-dark: #8f4f28; --success: #3b7a5a; --danger: #b13e3e;
+            --shadow: 0 4px 12px rgba(0,0,0,0.06); --radius: 16px; --font: 'DM Sans', sans-serif;
+        }
+        body { font-family: var(--font); background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 220px; background: #1e1b19; color: #e8e3dc; display: flex; flex-direction: column;
+            padding: 2rem 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+        }
+        .sidebar-brand { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.06em; text-align: center; padding: 0 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .sidebar-brand span { color: var(--primary-light); }
+        .sidebar-brand small { display: block; font-size: 0.55rem; font-weight: 300; letter-spacing: 0.2em; text-transform: uppercase; color: #8a8177; margin-top: 0.3rem; }
+        .sidebar-nav { margin-top: 2rem; flex: 1; }
+        .sidebar-nav a {
+            display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.8rem;
+            font-size: 0.75rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
+            color: rgba(232,227,220,0.5); text-decoration: none; transition: 0.2s;
+            border-left: 3px solid transparent; cursor: pointer;
+        }
+        .sidebar-nav a:hover, .sidebar-nav a.active { color: #fff; background: rgba(255,255,255,0.04); border-left-color: var(--primary-light); }
+        .sidebar-nav a .icon { font-size: 1.1rem; width: 20px; text-align: center; }
+        .sidebar-footer { padding: 1.5rem; font-size: 0.6rem; color: rgba(232,227,220,0.25); text-align: center; border-top: 1px solid rgba(255,255,255,0.06); }
+        .main { margin-left: 220px; flex: 1; padding: 2.5rem 3rem; }
+        .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+        .topbar-left h1 { font-size: 1.8rem; font-weight: 500; letter-spacing: -0.02em; }
+        .topbar-left p { font-size: 0.78rem; color: var(--text-light); margin-top: 0.2rem; }
+        .topbar-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+        .btn-primary { background: var(--primary); color: #fff; border: none; padding: 0.7rem 1.6rem; border-radius: 40px; font-family: var(--font); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); padding: 0.6rem 1.4rem; border-radius: 40px; font-family: var(--font); font-size: 0.72rem; font-weight: 500; cursor: pointer; transition: 0.2s; }
+        .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-route { background: #2c7a5a; color: #fff; border: none; padding: 0.6rem 1.4rem; border-radius: 40px; font-family: var(--font); font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-route:hover { background: #1f5f44; transform: translateY(-1px); }
+        .btn-route-sm { background: #2c7a5a; color: #fff; border: none; padding: 0.2rem 0.7rem; border-radius: 20px; font-family: var(--font); font-size: 0.6rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-route-sm:hover { background: #1f5f44; }
+        .btn-danger { background: var(--danger); color: #fff; border: none; padding: 0.6rem 1.4rem; border-radius: 40px; font-family: var(--font); font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-danger:hover { opacity: 0.85; }
+        .btn-success { background: var(--success); color: #fff; border: none; padding: 0.2rem 0.7rem; border-radius: 20px; font-family: var(--font); font-size: 0.6rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-success:hover { opacity: 0.85; }
+        .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+        .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 0.8rem; }
+        .panel-title { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-light); }
+        .panel-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+        .panel-controls input, .panel-controls select { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font); font-size: 0.75rem; background: var(--bg); color: var(--text); outline: none; transition: border 0.2s; }
+        .panel-controls input:focus, .panel-controls select:focus { border-color: var(--primary); }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+        thead th { text-align: left; padding: 0.8rem 1rem; font-weight: 600; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-light); border-bottom: 1px solid var(--border); background: #faf8f5; }
+        tbody td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        tbody tr:hover { background: #faf8f5; }
+        .status-badge { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 40px; font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+        .status-em-uso { background: #e6d7c4; color: #7a4d2a; }
+        .status-disponivel { background: #d4e0d4; color: #2f5a44; }
+        .status-manutencao { background: #f0d4d4; color: #9f3e3e; }
+        .status-entregue { background: #d4e0f0; color: #2a5a7a; }
+        .status-inativo { background: #e0d4d4; color: #7a4a4a; }
+        .pagamento-pago { color: var(--success); font-weight: 600; }
+        .pagamento-pendente { color: var(--danger); font-weight: 600; }
+        .actions-cell { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+        .actions-cell button { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 0.2rem 0.6rem; font-size: 0.65rem; cursor: pointer; transition: 0.2s; font-family: var(--font); color: var(--text-light); }
+        .actions-cell button:hover { border-color: var(--primary); color: var(--primary); }
+        .actions-cell .del:hover { border-color: var(--danger); color: var(--danger); }
+        .form-page { display: none; }
+        .form-page.active { display: block; }
+        .form-container { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; max-width: 820px; box-shadow: var(--shadow); }
+        .form-container h2 { font-weight: 500; font-size: 1.3rem; margin-bottom: 0.2rem; }
+        .form-container .sub { color: var(--text-light); font-size: 0.8rem; margin-bottom: 1.8rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group.full { grid-column: 1 / -1; }
+        .form-group label { display: block; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-light); margin-bottom: 0.3rem; font-weight: 600; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem 0.9rem; border: 1px solid var(--border); border-radius: 10px; font-family: var(--font); font-size: 0.85rem; background: var(--bg); color: var(--text); outline: none; transition: border 0.2s; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+        .form-actions { display: flex; gap: 0.8rem; margin-top: 1.5rem; justify-content: flex-end; flex-wrap: wrap; }
+        .agenda-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) {
+            .agenda-grid { grid-template-columns: 1fr; }
+            .sidebar { width: 60px; padding: 1rem 0; }
+            .sidebar-brand { font-size: 0.8rem; padding: 0 0.5rem 1.5rem; }
+            .sidebar-brand small { display: none; }
+            .sidebar-nav a { padding: 0.7rem 1rem; font-size: 0.6rem; justify-content: center; }
+            .sidebar-nav a span:not(.icon) { display: none; }
+            .sidebar-footer { display: none; }
+            .main { margin-left: 60px; padding: 1.5rem 1.2rem; }
+            .topbar-actions { width: 100%; }
+            .topbar-actions button { flex: 1; text-align: center; font-size: 0.65rem; padding: 0.5rem 0.8rem; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+        .agenda-coluna { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem 1.5rem; box-shadow: var(--shadow); }
+        .agenda-coluna h3 { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-light); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border); }
+        .agenda-coluna h3 .badge-count { background: var(--primary); color: #fff; border-radius: 40px; padding: 0.1rem 0.6rem; font-size: 0.65rem; margin-left: 0.5rem; }
+        .agenda-item { background: #faf8f5; border-radius: 12px; padding: 0.8rem 1rem; margin-bottom: 0.6rem; border-left: 4px solid var(--primary-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem; }
+        .agenda-item .info { display: flex; flex-direction: column; flex: 1; min-width: 150px; }
+        .agenda-item .info .cliente { font-weight: 600; font-size: 0.9rem; }
+        .agenda-item .info .endereco { font-size: 0.72rem; color: var(--text-light); }
+        .agenda-item .info .detalhe { font-size: 0.65rem; color: var(--text-light); margin-top: 0.2rem; }
+        .agenda-item .info .detalhe span { background: var(--border); padding: 0.1rem 0.5rem; border-radius: 12px; margin-right: 0.3rem; }
+        .agenda-item .actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+        .agenda-item .actions button { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 0.2rem 0.6rem; font-size: 0.6rem; cursor: pointer; transition: 0.2s; font-family: var(--font); color: var(--text-light); }
+        .agenda-item .actions button:hover { border-color: var(--primary); color: var(--primary); }
+        .agenda-vazia { text-align: center; padding: 2rem 0; color: var(--text-light); font-size: 0.8rem; }
+        .agenda-vazia .emoji { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+        .tipo-colocacao { border-left-color: #3b7a5a !important; }
+        .tipo-devolucao { border-left-color: #b86b3a !important; }
+        .tipo-entregue { border-left-color: #2a5a7a !important; opacity: 0.6; }
+        .info-agenda { font-size: 0.7rem; color: var(--text-light); background: var(--bg); padding: 0.4rem 1rem; border-radius: 40px; display: inline-block; margin-bottom: 1rem; }
+        .api-config { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .api-config label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-light); }
+        .api-config input { flex: 1; padding: 0.5rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font); font-size: 0.78rem; background: var(--bg); color: var(--text); outline: none; min-width: 200px; }
+        .api-config input:focus { border-color: var(--primary); }
+        .api-config .status-indicator { font-size: 0.65rem; color: var(--text-light); display: flex; align-items: center; gap: 0.3rem; }
+        .api-config .status-indicator .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .dot.green { background: var(--success); }
+        .dot.red { background: var(--danger); }
+        .dot.yellow { background: #d4a017; }
+        .route-result { background: var(--card); border: 1px solid var(--success); border-radius: var(--radius); padding: 1.2rem 1.5rem; margin-top: 1.5rem; display: none; }
+        .route-result.show { display: block; }
+        .route-result h4 { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-light); margin-bottom: 0.8rem; }
+        .route-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+        .route-summary-item { background: var(--bg); padding: 0.6rem 1rem; border-radius: 8px; text-align: center; }
+        .route-summary-item .value { font-size: 1.2rem; font-weight: 600; color: var(--text); }
+        .route-summary-item .label { font-size: 0.6rem; text-transform: uppercase; color: var(--text-light); }
+        .route-steps { list-style: none; padding: 0; }
+        .route-steps li { display: flex; align-items: center; gap: 0.8rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.78rem; }
+        .route-steps li:last-child { border-bottom: none; }
+        .route-steps .step-num { background: var(--primary); color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 600; flex-shrink: 0; }
+        .route-steps .step-info { flex: 1; }
+        .route-steps .step-info .cliente-name { font-weight: 600; }
+        .route-steps .step-info .addr { font-size: 0.65rem; color: var(--text-light); }
+        .route-steps .step-meta { font-size: 0.65rem; color: var(--text-light); text-align: right; flex-shrink: 0; }
+        .toast { position: fixed; bottom: 2rem; right: 2rem; background: #1e1b19; color: #f0ede8; padding: 0.8rem 1.4rem; border-radius: 12px; font-size: 0.8rem; box-shadow: 0 8px 20px rgba(0,0,0,0.2); transform: translateY(20px); opacity: 0; transition: 0.3s ease; pointer-events: none; z-index: 200; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--danger); }
+        .filtro-row { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center; }
+        .filtro-row input, .filtro-row select { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font); font-size: 0.75rem; background: var(--bg); color: var(--text); outline: none; }
+        .delete-inline { background: var(--danger); color: #fff; border: none; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.65rem; cursor: pointer; }
+        .delete-inline:hover { opacity: 0.85; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-brand">CHAMA<span>CAÇAMBA</span><small>Gestão de caçambas</small></div>
+        <nav class="sidebar-nav">
+            <a class="active" data-page="dashboard" onclick="showPage('dashboard')"><span class="icon">📊</span><span>Dashboard</span></a>
+            <a data-page="agenda" onclick="showPage('agenda')"><span class="icon">📅</span><span>Agenda Hoje</span></a>
+            <a data-page="historico" onclick="showPage('historico')"><span class="icon">📜</span><span>Histórico</span></a>
+            <a data-page="form" onclick="showPage('form')"><span class="icon">➕</span><span>Adicionar</span></a>
+            <a data-page="form" onclick="openNewClient()"><span class="icon">📝</span><span>Novo cliente</span></a>
+        </nav>
+        <div class="sidebar-footer">Chama Caçamba © 2025</div>
+    </aside>
+
+    <main class="main">
+        <!-- DASHBOARD -->
+        <section id="page-dashboard">
+            <div class="topbar"><div class="topbar-left"><h1>📋 Dashboard</h1><p>Controle geral de caçambas e clientes</p></div><button class="btn-primary" onclick="openNewClient()">+ Novo cliente</button></div>
+            <div class="panel" style="padding:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;">
+                <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Total ativos</span><div style="font-size:1.5rem;font-weight:600;" id="totalCount">0</div></div>
+                <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Em uso</span><div style="font-size:1.5rem;font-weight:600;" id="emUsoCount">0</div></div>
+                <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Disponíveis</span><div style="font-size:1.5rem;font-weight:600;" id="disponivelCount">0</div></div>
+                <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Manutenção</span><div style="font-size:1.5rem;font-weight:600;" id="manutencaoCount">0</div></div>
+                <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">A receber</span><div style="font-size:1.5rem;font-weight:600;" id="totalReceber">R$ 0</div></div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Clientes e caçambas</span>
+                    <div class="panel-controls">
+                        <input type="text" id="searchInput" placeholder="Buscar..." oninput="renderTable()">
+                        <select id="filterStatus" onchange="renderTable()">
+                            <option value="">Todos</option>
+                            <option value="Em uso">Em uso</option>
+                            <option value="Disponível">Disponível</option>
+                            <option value="Manutenção">Manutenção</option>
+                            <option value="Entregue">Entregue</option>
+                            <option value="Inativo">Inativo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>N°</th><th>Cliente</th><th>Endereço</th><th>Status</th><th>Colocação</th><th>Devolução</th><th>Valor</th><th>Pagamento</th><th>Ações</th></tr></thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- AGENDA HOJE -->
+        <section id="page-agenda" class="form-page">
+            <div class="topbar">
+                <div class="topbar-left"><h1>📅 Agenda de Hoje</h1><p id="agendaDate">Carregando data...</p></div>
+                <div class="topbar-actions">
+                    <button class="btn-secondary" onclick="showPage('dashboard')">← Voltar</button>
+                    <button class="btn-route" onclick="optimizeRouteWithAPI()">🧠 Otimizar com API</button>
+                    <button class="btn-primary" onclick="renderAgenda()">↻ Atualizar</button>
+                </div>
+            </div>
+            <div class="api-config">
+                <label>🔑 Google API Key</label>
+                <input type="password" id="apiKeyInput" placeholder="AIzaSy..." onchange="saveApiKey(this.value)">
+                <span class="status-indicator" id="apiStatus"><span class="dot yellow"></span> Não configurada</span>
+                <button class="btn-route-sm" onclick="testApiKey()">Testar</button>
+                <span style="font-size:0.6rem;color:var(--text-light);margin-left:auto;">Franquia gratuita: 10.000 req/mês</span>
+            </div>
+            <div class="info-agenda">🔍 Considerando apenas <strong>DIA e MÊS</strong> (ignora o ano). Ex: 27/07 de qualquer ano.</div>
+            <div class="agenda-grid" id="agendaGrid">
+                <div class="agenda-coluna">
+                    <h3>📤 Colocações de Hoje <span class="badge-count" id="colocacaoCount">0</span></h3>
+                    <div id="colocacaoList"></div>
+                </div>
+                <div class="agenda-coluna">
+                    <h3>📥 Devoluções de Hoje <span class="badge-count" id="devolucaoCount">0</span></h3>
+                    <div id="devolucaoList"></div>
+                </div>
+            </div>
+            <div class="route-result" id="routeResult">
+                <h4>🗺️ Rota Otimizada</h4>
+                <div class="route-summary"><div class="route-summary-item"><div class="value" id="routeDist">-</div><div class="label">Distância total</div></div><div class="route-summary-item"><div class="value" id="routeTime">-</div><div class="label">Tempo total</div></div><div class="route-summary-item"><div class="value" id="routeStops">-</div><div class="label">Paradas</div></div></div>
+                <ul class="route-steps" id="routeSteps"></ul>
+                <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <button class="btn-route-sm" onclick="openRouteInMaps()">🗺️ Abrir no Google Maps</button>
+                    <button class="btn-secondary" style="font-size:0.6rem;padding:0.2rem 0.8rem;" onclick="document.getElementById('routeResult').classList.remove('show');document.getElementById('map').style.display='none';">Fechar</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- HISTÓRICO (INDEPENDENTE) -->
+        <section id="page-historico" class="form-page">
+            <div class="topbar">
+                <div class="topbar-left"><h1>📜 Histórico de Entregas</h1><p>Registro independente de caçambas entregues (não afeta o dashboard)</p></div>
+                <button class="btn-secondary" onclick="showPage('dashboard')">← Voltar</button>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Histórico</span>
+                    <div class="filtro-row">
+                        <input type="text" id="historicoSearch" placeholder="Buscar..." oninput="renderHistorico()">
+                        <select id="historicoFilterStatus" onchange="renderHistorico()">
+                            <option value="">Todos</option>
+                            <option value="Entregue">Entregue</option>
+                            <option value="Inativo">Inativo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>N°</th><th>Cliente</th><th>Endereço</th><th>Status</th><th>Colocação</th><th>Devolução</th><th>Valor</th><th>Pagamento</th><th>Data Entrega</th><th>Ações</th></tr></thead>
+                        <tbody id="historicoBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- FORMULÁRIO (com edição, exclusão, entrega e cálculo de dias) -->
+        <section id="page-form" class="form-page">
+            <div class="topbar">
+                <div class="topbar-left"><h1 id="formTitle">➕ Adicionar cliente</h1><p id="formSub" class="sub">Preencha os dados da caçamba e do cliente</p></div>
+                <button class="btn-secondary" onclick="showPage('dashboard')">← Voltar</button>
+            </div>
+            <div class="panel" style="padding:2rem;max-width:820px;">
+                <form id="clientForm" onsubmit="saveClient(event)">
+                    <input type="hidden" id="editId" value="">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;">
+                        <div class="form-group"><label>Número *</label><input type="text" id="numero" required></div>
+                        <div class="form-group"><label>Status *</label><select id="status" required>
+                            <option value="Em uso">Em uso</option>
+                            <option value="Disponível">Disponível</option>
+                            <option value="Manutenção">Manutenção</option>
+                            <option value="Entregue">Entregue</option>
+                            <option value="Inativo">Inativo</option>
+                        </select></div>
+                        <div class="form-group"><label>Cliente *</label><input type="text" id="cliente" required></div>
+                        <div class="form-group"><label>Endereço</label><input type="text" id="endereco"></div>
+                        <div class="form-group"><label>Data colocação</label><input type="date" id="dataRetirada" onchange="calcularDevolucao()"></div>
+                        <div class="form-group"><label>Dias (para devolução)</label><input type="number" id="diasDevolucao" min="0" value="30" oninput="calcularDevolucao()"></div>
+                        <div class="form-group"><label>Data devolução (automática)</label><input type="date" id="dataDevolucao" readonly style="background:#e8e4de;"></div>
+                        <div class="form-group"><label>Valor (R$)</label><input type="number" id="valor" step="0.01"></div>
+                        <div class="form-group"><label>Pagamento</label><select id="pagamento"><option value="Pago">Pago</option><option value="Pendente">Pendente</option><option value="Parcial">Parcial</option></select></div>
+                    </div>
+                    <div class="form-group full"><label>Observações</label><textarea id="observacoes"></textarea></div>
+                    <div class="form-actions">
+                        <div style="flex:1;display:flex;gap:0.6rem;">
+                            <button type="button" class="btn-danger" id="btnDeleteForm" onclick="excluirDaEdicao()" style="display:none;">🗑️ Excluir cliente</button>
+                            <button type="button" class="btn-success" id="btnEntregarForm" onclick="entregarDaEdicao()" style="display:none;">📦 Entregar</button>
+                        </div>
+                        <div>
+                            <button type="button" class="btn-secondary" onclick="showPage('dashboard')">Cancelar</button>
+                            <button type="submit" class="btn-primary" id="formSubmitBtn">Salvar cliente</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ══════════════════════════════════════════
+        // CHAMA CAÇAMBA — Histórico independente + Entrega + Cálculo dias
+        // ══════════════════════════════════════════
+
+        const STORAGE_KEY = 'chama_cacamba_clientes';
+        const STORAGE_HISTORICO_KEY = 'chama_cacamba_historico';
+        const API_KEY_STORAGE = 'chama_cacamba_api_key';
+
+        const DEFAULT_DATA = [
+            { id: '1', numero: '00', status: 'Em uso', cliente: 'TINHO', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '2', numero: '01', status: 'Disponível', cliente: 'Metade', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pago', observacoes: '', dataEntrega: '' },
+            { id: '3', numero: '02', status: 'Em uso', cliente: 'Ebinho', endereco: 'Rua Ibirite 681 - Bom pastor', dataRetirada: '2025-07-25', dataDevolucao: '2025-08-25', valor: 470, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '4', numero: '03', status: 'Disponível', cliente: 'METADE', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pago', observacoes: '', dataEntrega: '' },
+            { id: '5', numero: '04', status: 'Em uso', cliente: 'LÍDIA', endereco: 'Niterói', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '6', numero: '05', status: 'Em uso', cliente: 'TAIS', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '7', numero: '06', status: 'Em uso', cliente: 'FABRÍCIO', endereco: '', dataRetirada: '2025-07-27', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '8', numero: '07', status: 'Em uso', cliente: '', endereco: '', dataRetirada: '2025-07-23', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '9', numero: '08', status: 'Em uso', cliente: 'TÂNIA CRISTINA I', endereco: 'Rua José Manoel sobrinho 280 Serra ver', dataRetirada: '2025-07-24', dataDevolucao: '2025-07-27', valor: 300, pagamento: 'Pago', observacoes: 'Pix pago', dataEntrega: '' },
+            { id: '10', numero: '09', status: 'Em uso', cliente: 'LEANDRO', endereco: 'Rua padre Abel 1260 casa - Dona Quita', dataRetirada: '2025-07-27', dataDevolucao: '', valor: 350, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '11', numero: '10', status: 'Em uso', cliente: 'JULIO / HENRIQUE', endereco: 'Vila Royalle', dataRetirada: '2025-07-23', dataDevolucao: '2025-07-29', valor: 320, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '12', numero: '11', status: 'Em uso', cliente: 'Adson Vieira Sch', endereco: 'Avenida Afonso Pena 1550 Manoel', dataRetirada: '2025-07-27', dataDevolucao: '2025-07-28', valor: 280, pagamento: 'Pago', observacoes: 'Pix pago', dataEntrega: '' },
+            { id: '13', numero: '12', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: 'Levar descarte', dataEntrega: '' },
+            { id: '14', numero: '13', status: 'Em uso', cliente: 'BÁRBARA', endereco: '', dataRetirada: '2025-07-22', dataDevolucao: '2025-07-26', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '15', numero: '14', status: 'Em uso', cliente: 'GUSTAVO DUART', endereco: 'Tietê - Rua Alameda Paranaíba 667', dataRetirada: '2025-07-23', dataDevolucao: '2025-07-29', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '16', numero: '15', status: 'Manutenção', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+        ];
+
+        let clients = [];
+        let historico = [];
+        let routeData = null;
+
+        // ─── Funções auxiliares ───
+        function getTodayString() { return new Date().toISOString().split('T')[0]; }
+        function formatDateBR(dateStr) { if (!dateStr) return '-'; const p = dateStr.split('-'); if (p.length===3) return `${p[2]}/${p[1]}/${p[0]}`; return dateStr; }
+        function formatDateTime(dateStr) { if (!dateStr) return '-'; try { const d = new Date(dateStr); return d.toLocaleString('pt-BR'); } catch(e){ return dateStr; } }
+        function isToday(dateStr) {
+            if (!dateStr) return false;
+            const p = dateStr.split('-'); if (p.length!==3) return false;
+            const h = new Date(); const mes = String(h.getMonth()+1).padStart(2,'0'); const dia = String(h.getDate()).padStart(2,'0');
+            return p[1]===mes && p[2]===dia;
+        }
+        function getStatusClass(status) {
+            const map = {
+                'Em uso': 'status-em-uso',
+                'Disponível': 'status-disponivel',
+                'Manutenção': 'status-manutencao',
+                'Entregue': 'status-entregue',
+                'Inativo': 'status-inativo'
+            };
+            return map[status] || '';
+        }
+        function isAtivo(status) {
+            return status !== 'Entregue' && status !== 'Inativo';
+        }
+        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,4); }
+
+        // ─── Load / Save ───
+        function loadData() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try { clients = JSON.parse(stored); } catch(e){ clients = []; }
+                if (!clients.length) {
+                    clients = DEFAULT_DATA.map(c => ({ ...c, id: String(c.id), dataEntrega: c.dataEntrega || '' }));
+                    saveData();
+                }
+            } else {
+                clients = DEFAULT_DATA.map(c => ({ ...c, id: String(c.id), dataEntrega: c.dataEntrega || '' }));
+                saveData();
+            }
+            loadHistorico();
+        }
+        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(clients)); }
+
+        function loadHistorico() {
+            const stored = localStorage.getItem(STORAGE_HISTORICO_KEY);
+            if (stored) {
+                try { historico = JSON.parse(stored); } catch(e){ historico = []; }
+            } else {
+                historico = [];
+                saveHistorico();
+            }
+        }
+        function saveHistorico() { localStorage.setItem(STORAGE_HISTORICO_KEY, JSON.stringify(historico)); }
+
+        // ─── API Key ───
+        function loadApiKey() { return localStorage.getItem(API_KEY_STORAGE) || ''; }
+        function saveApiKey(key) {
+            localStorage.setItem(API_KEY_STORAGE, key.trim());
+            updateApiStatus();
+            if (key.trim()) { const old = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]'); if (old) old.remove(); loadGoogleMaps(); }
+        }
+        function updateApiStatus() {
+            const key = loadApiKey(); const status = document.getElementById('apiStatus'); const dot = status.querySelector('.dot');
+            if (key) { dot.className = 'dot green'; status.innerHTML = `<span class="dot green"></span> API configurada`; }
+            else { dot.className = 'dot red'; status.innerHTML = `<span class="dot red"></span> Não configurada`; }
+        }
+        function testApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (!key) { showToast('Digite uma API Key primeiro.', 'error'); return; }
+            if (typeof google === 'undefined' || !google.maps) { showToast('⏳ Aguarde a biblioteca carregar...', 'error'); return; }
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ address: 'Av Paulista 1000' }, (results, status) => {
+                if (status === 'OK') { showToast('✅ API Key válida!', 'success'); saveApiKey(key); updateApiStatus(); }
+                else if (status === 'REQUEST_DENIED') { showToast('❌ API Key inválida ou não tem permissão.', 'error'); }
+                else { showToast(`❌ Erro: ${status}`, 'error'); }
+            });
+        }
+
+        // ─── Cálculo automático da devolução ───
+        function calcularDevolucao() {
+            const dataRet = document.getElementById('dataRetirada').value;
+            const dias = parseInt(document.getElementById('diasDevolucao').value) || 0;
+            if (dataRet && dias > 0) {
+                const d = new Date(dataRet);
+                d.setDate(d.getDate() + dias);
+                const ano = d.getFullYear();
+                const mes = String(d.getMonth()+1).padStart(2,'0');
+                const dia = String(d.getDate()).padStart(2,'0');
+                document.getElementById('dataDevolucao').value = `${ano}-${mes}-${dia}`;
+            } else {
+                document.getElementById('dataDevolucao').value = '';
+            }
+        }
+
+        // ─── Dashboard ───
+        function renderStats() {
+            const ativos = clients.filter(c => isAtivo(c.status));
+            const total = ativos.length;
+            const emUso = ativos.filter(c => c.status === 'Em uso').length;
+            const disponivel = ativos.filter(c => c.status === 'Disponível').length;
+            const manutencao = ativos.filter(c => c.status === 'Manutenção').length;
+            const totalReceber = clients.filter(c => c.pagamento !== 'Pago' && isAtivo(c.status)).reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('emUsoCount').textContent = emUso;
+            document.getElementById('disponivelCount').textContent = disponivel;
+            document.getElementById('manutencaoCount').textContent = manutencao;
+            document.getElementById('totalReceber').textContent = `R$ ${totalReceber.toFixed(2)}`;
+        }
+
+        function renderTable() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filterStatus = document.getElementById('filterStatus').value;
+            const tbody = document.getElementById('tableBody');
+            let filtered = clients;
+            if (filterStatus) filtered = filtered.filter(c => c.status === filterStatus);
+            if (search) filtered = filtered.filter(c => c.cliente.toLowerCase().includes(search) || c.endereco.toLowerCase().includes(search) || c.numero.includes(search));
+            if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-light);">Nenhum cliente encontrado.</td></tr>`; return; }
+            tbody.innerHTML = filtered.map(c => `
+                <tr>
+                    <td><strong>${c.numero}</strong></td>
+                    <td>${c.cliente || '-'}</td>
+                    <td>${c.endereco || '-'}</td>
+                    <td><span class="status-badge ${getStatusClass(c.status)}">${c.status}</span></td>
+                    <td>${formatDateBR(c.dataRetirada)}</td>
+                    <td>${formatDateBR(c.dataDevolucao)}</td>
+                    <td>R$ ${(parseFloat(c.valor)||0).toFixed(2)}</td>
+                    <td><span class="${c.pagamento === 'Pago' ? 'pagamento-pago' : 'pagamento-pendente'}">${c.pagamento}</span></td>
+                    <td>
+                        <div class="actions-cell">
+                            <button onclick="editClient('${c.id}')">✏️</button>
+                            ${isAtivo(c.status) ? `<button class="btn-success" onclick="entregarCaçamba('${c.id}')" style="border:none;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.6rem;cursor:pointer;">📦 Entregar</button>` : ''}
+                            <button class="del" onclick="deleteClient('${c.id}')">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ─── AGENDA ───
+        function renderAgenda() {
+            const hoje = new Date();
+            const diaMes = `${String(hoje.getDate()).padStart(2,'0')}/${String(hoje.getMonth()+1).padStart(2,'0')}`;
+            document.getElementById('agendaDate').textContent = `📆 ${formatDateBR(getTodayString())} (hoje) — dia/mês: ${diaMes}`;
+            const colocacoes = clients.filter(c => c.dataRetirada && isToday(c.dataRetirada) && c.cliente);
+            const devolucoes = clients.filter(c => c.dataDevolucao && isToday(c.dataDevolucao) && c.cliente);
+            document.getElementById('colocacaoCount').textContent = colocacoes.length;
+            document.getElementById('devolucaoCount').textContent = devolucoes.length;
+            const colocacaoList = document.getElementById('colocacaoList');
+            const devolucaoList = document.getElementById('devolucaoList');
+            colocacaoList.innerHTML = colocacoes.length ? colocacoes.map(c => {
+                const isEntregue = c.status === 'Entregue' || c.status === 'Inativo';
+                const extraClass = isEntregue ? 'tipo-entregue' : 'tipo-colocacao';
+                const entregueLabel = isEntregue ? ' ✅ Entregue' : '';
+                return `<div class="agenda-item ${extraClass}">
+                    <div class="info">
+                        <div class="cliente">${c.cliente} <span style="font-weight:400;color:var(--text-light);font-size:0.7rem;">N° ${c.numero}</span>${entregueLabel}</div>
+                        <div class="endereco">${c.endereco || 'Endereço não informado'}</div>
+                        <div class="detalhe"><span>Status: ${c.status}</span><span>Valor: R$ ${(parseFloat(c.valor)||0).toFixed(2)}</span><span>Pagamento: ${c.pagamento}</span></div>
+                    </div>
+                    <div class="actions">
+                        ${c.endereco ? `<button class="btn-route-sm" onclick="traceRoute('${c.endereco.replace(/'/g, "\\'")}')">🗺️ Rota</button>` : ''}
+                        ${!isEntregue ? `<button class="btn-success" onclick="entregarCaçamba('${c.id}')" style="border:none;padding:0.2rem 0.7rem;border-radius:20px;font-size:0.6rem;font-weight:600;cursor:pointer;">📦 Entregar</button>` : ''}
+                        <button onclick="editClient('${c.id}')">✏️</button>
+                    </div>
+                </div>`;
+            }).join('') : `<div class="agenda-vazia"><span class="emoji">✅</span>Nenhuma colocação agendada para hoje.</div>`;
+            devolucaoList.innerHTML = devolucoes.length ? devolucoes.map(c => {
+                const isEntregue = c.status === 'Entregue' || c.status === 'Inativo';
+                const extraClass = isEntregue ? 'tipo-entregue' : 'tipo-devolucao';
+                const entregueLabel = isEntregue ? ' ✅ Entregue' : '';
+                return `<div class="agenda-item ${extraClass}">
+                    <div class="info">
+                        <div class="cliente">${c.cliente} <span style="font-weight:400;color:var(--text-light);font-size:0.7rem;">N° ${c.numero}</span>${entregueLabel}</div>
+                        <div class="endereco">${c.endereco || 'Endereço não informado'}</div>
+                        <div class="detalhe"><span>Status: ${c.status}</span><span>Valor: R$ ${(parseFloat(c.valor)||0).toFixed(2)}</span><span>Pagamento: ${c.pagamento}</span></div>
+                    </div>
+                    <div class="actions">
+                        ${c.endereco ? `<button class="btn-route-sm" onclick="traceRoute('${c.endereco.replace(/'/g, "\\'")}')">🗺️ Rota</button>` : ''}
+                        ${!isEntregue ? `<button class="btn-success" onclick="entregarCaçamba('${c.id}')" style="border:none;padding:0.2rem 0.7rem;border-radius:20px;font-size:0.6rem;font-weight:600;cursor:pointer;">📦 Entregar</button>` : ''}
+                        <button onclick="editClient('${c.id}')">✏️</button>
+                    </div>
+                </div>`;
+            }).join('') : `<div class="agenda-vazia"><span class="emoji">✅</span>Nenhuma devolução agendada para hoje.</div>`;
+        }
+
+        function traceRoute(address) {
+            if (!address || address.trim() === '' || address.trim() === '-') { showToast('⚠️ Este cliente não tem endereço cadastrado.', 'error'); return; }
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`, '_blank');
+        }
+
+        // ─── ENTREGAR (copia para histórico e marca como Entregue) ───
+        function entregarCaçamba(id) {
+            const idx = clients.findIndex(c => c.id === id);
+            if (idx === -1) return;
+            const c = clients[idx];
+            if (c.status === 'Entregue' || c.status === 'Inativo') { showToast('Esta caçamba já foi entregue ou está inativa.', 'error'); return; }
+            if (!confirm(`Confirmar entrega da caçamba ${c.numero} para ${c.cliente}?`)) return;
+            const now = new Date().toISOString();
+            // Salva no histórico (cópia independente)
+            const copia = { ...c, dataEntrega: now, id: generateId() };
+            historico.push(copia);
+            saveHistorico();
+            // Atualiza status do original
+            clients[idx].status = 'Entregue';
+            clients[idx].dataEntrega = now;
+            saveData();
+            renderAgenda();
+            renderHistorico();
+            renderStats();
+            renderTable();
+            showToast(`✅ Caçamba ${c.numero} entregue e registrada no histórico!`, 'success');
+        }
+
+        // ─── HISTÓRICO (independente) ───
+        function renderHistorico() {
+            const search = document.getElementById('historicoSearch').value.toLowerCase();
+            const filterStatus = document.getElementById('historicoFilterStatus').value;
+            const tbody = document.getElementById('historicoBody');
+            let filtered = historico;
+            if (filterStatus) filtered = filtered.filter(h => h.status === filterStatus);
+            if (search) filtered = filtered.filter(h => h.cliente.toLowerCase().includes(search) || h.endereco.toLowerCase().includes(search) || h.numero.includes(search));
+            if (!filtered.length) {
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-light);">Nenhum registro no histórico.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = filtered.map(h => `
+                <tr>
+                    <td><strong>${h.numero}</strong></td>
+                    <td>${h.cliente || '-'}</td>
+                    <td>${h.endereco || '-'}</td>
+                    <td><span class="status-badge ${getStatusClass(h.status)}">${h.status}</span></td>
+                    <td>${formatDateBR(h.dataRetirada)}</td>
+                    <td>${formatDateBR(h.dataDevolucao)}</td>
+                    <td>R$ ${(parseFloat(h.valor)||0).toFixed(2)}</td>
+                    <td><span class="${h.pagamento === 'Pago' ? 'pagamento-pago' : 'pagamento-pendente'}">${h.pagamento}</span></td>
+                    <td>${formatDateTime(h.dataEntrega)}</td>
+                    <td><button class="delete-inline" onclick="excluirHistorico('${h.id}')">🗑️ Excluir</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function excluirHistorico(id) {
+            if (!confirm('Excluir permanentemente este registro do histórico? Esta ação não pode ser desfeita.')) return;
+            historico = historico.filter(h => h.id !== id);
+            saveHistorico();
+            renderHistorico();
+            showToast('Registro excluído do histórico.', 'success');
+        }
+
+        // ─── ROTEIRIZAÇÃO ───
+        function optimizeRouteWithAPI() {
+            const key = loadApiKey();
+            if (!key) { showToast('⚠️ Configure sua Google API Key primeiro.', 'error'); return; }
+            if (typeof google === 'undefined' || !google.maps) { showToast('⏳ Carregando biblioteca...', 'error'); return; }
+            const colocacoes = clients.filter(c => c.dataRetirada && isToday(c.dataRetirada) && c.cliente && c.endereco && c.endereco.trim() !== '' && isAtivo(c.status));
+            const devolucoes = clients.filter(c => c.dataDevolucao && isToday(c.dataDevolucao) && c.cliente && c.endereco && c.endereco.trim() !== '' && isAtivo(c.status));
+            const uniqueMap = new Map();
+            colocacoes.forEach(c => { const a = c.endereco.trim(); if (!uniqueMap.has(a)) uniqueMap.set(a, { cliente: c.cliente, endereco: a, tipo: 'Colocação', id: c.id }); });
+            devolucoes.forEach(c => { const a = c.endereco.trim(); if (!uniqueMap.has(a)) uniqueMap.set(a, { cliente: c.cliente, endereco: a, tipo: 'Devolução', id: c.id }); });
+            const stops = Array.from(uniqueMap.values());
+            if (stops.length < 2) { showToast('⚠️ Precisa de pelo menos 2 endereços para otimizar.', 'error'); return; }
+            if (stops.length > 10) { showToast('⚠️ O Google Maps suporta até 10 paradas. Usando as 10 primeiras.', 'error'); stops.splice(10); }
+            const origin = stops[0].endereco; const destination = stops[stops.length-1].endereco; const waypoints = stops.slice(1,-1).map(s => ({ location: s.endereco }));
+            const request = { origin, destination, waypoints, optimizeWaypoints: true, travelMode: google.maps.TravelMode.DRIVING, language: 'pt-BR' };
+            showToast('⏳ Calculando rota otimizada...', 'success');
+            const service = new google.maps.DirectionsService();
+            service.route(request, (result, status) => {
+                if (status === google.maps.DirectionsStatus.OK) {
+                    const route = result.routes[0]; const leg = route.legs[0];
+                    const waypointOrder = route.waypoint_order || [];
+                    const orderedStops = [origin, ...waypointOrder.map(i => stops[i+1].endereco), destination];
+                    const orderedItems = orderedStops.map(addr => stops.find(s => s.endereco === addr) || { cliente: addr, endereco: addr, tipo: '' });
+                    let totalDist = 0, totalTime = 0; const stepDetails = [];
+                    for (let i=0; i<leg.steps.length; i++) { const s = leg.steps[i]; totalDist += s.distance.value; totalTime += s.duration.value; stepDetails.push({ from: s.start_location, to: s.end_location, distance: s.distance.text, duration: s.duration.text, instruction: s.instructions.replace(/<[^>]*>/g,'') }); }
+                    routeData = { orderedItems, totalDist: (totalDist/1000).toFixed(1), totalTime: Math.round(totalTime/60), stepDetails, url: `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(orderedStops[0])}&destination=${encodeURIComponent(orderedStops[orderedStops.length-1])}&waypoints=${orderedStops.slice(1,-1).map(w=>encodeURIComponent(w)).join('|')}` };
+                    displayRouteResult(routeData);
+                    showToast('✅ Rota otimizada calculada com sucesso!', 'success');
+                    if (directionsRenderer) { directionsRenderer.setMap(map); directionsRenderer.setDirections(result); const mapDiv = document.getElementById('map'); if (mapDiv) mapDiv.style.display = 'block'; }
+                } else if (status === google.maps.DirectionsStatus.REQUEST_DENIED) { showToast('❌ API Key inválida ou sem permissão.', 'error'); }
+                else if (status === google.maps.DirectionsStatus.ZERO_RESULTS) { showToast('❌ Nenhuma rota encontrada entre os endereços.', 'error'); }
+                else { showToast(`❌ Erro: ${status}`, 'error'); }
+            });
+        }
+        function displayRouteResult(data) {
+            const resultDiv = document.getElementById('routeResult');
+            document.getElementById('routeDist').textContent = `${data.totalDist} km`;
+            document.getElementById('routeTime').textContent = `${data.totalTime} min`;
+            document.getElementById('routeStops').textContent = data.orderedItems.length;
+            document.getElementById('routeSteps').innerHTML = data.orderedItems.map((item, idx) => `
+                <li><span class="step-num">${idx+1}</span><span class="step-info"><span class="cliente-name">${item.cliente}</span><span class="addr">${item.endereco}</span><span style="font-size:0.6rem;color:var(--text-light);margin-left:0.5rem;">${item.tipo||''}</span></span><span class="step-meta">${idx < data.orderedItems.length-1 ? `${data.stepDetails[idx]?.distance || '-'} · ${data.stepDetails[idx]?.duration || '-'}` : ''}</span></li>
+            `).join('');
+            resultDiv.classList.add('show'); resultDiv.scrollIntoView({ behavior:'smooth', block:'start' });
+        }
+        function openRouteInMaps() { if (routeData && routeData.url) { window.open(routeData.url,'_blank'); } else { showToast('⚠️ Nenhuma rota calculada ainda.', 'error'); } }
+
+        // ─── NAVEGAÇÃO ───
+        function showPage(page) {
+            document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+            document.querySelector(`.sidebar-nav a[data-page="${page}"]`)?.classList.add('active');
+            document.getElementById('page-dashboard').style.display = 'none';
+            document.getElementById('page-agenda').classList.remove('active');
+            document.getElementById('page-historico').classList.remove('active');
+            document.getElementById('page-form').classList.remove('active');
+            if (page === 'dashboard') {
+                document.getElementById('page-dashboard').style.display = 'block';
+                renderStats(); renderTable();
+            } else if (page === 'agenda') {
+                document.getElementById('page-agenda').classList.add('active');
+                renderAgenda(); updateApiStatus(); document.getElementById('apiKeyInput').value = loadApiKey();
+            } else if (page === 'historico') {
+                document.getElementById('page-historico').classList.add('active');
+                renderHistorico();
+            } else {
+                document.getElementById('page-form').classList.add('active');
+            }
+        }
+
+        // ─── FORMULÁRIO ───
+        function openNewClient() {
+            document.getElementById('editId').value = '';
+            document.getElementById('formTitle').textContent = '➕ Adicionar cliente';
+            document.getElementById('formSub').textContent = 'Preencha os dados da caçamba e do cliente';
+            document.getElementById('formSubmitBtn').textContent = 'Salvar cliente';
+            document.getElementById('btnDeleteForm').style.display = 'none';
+            document.getElementById('btnEntregarForm').style.display = 'none';
+            document.getElementById('clientForm').reset();
+            document.getElementById('status').value = 'Em uso';
+            document.getElementById('diasDevolucao').value = 30;
+            document.getElementById('dataDevolucao').value = '';
+            showPage('form');
+        }
+
+        function editClient(id) {
+            const c = clients.find(item => item.id === id);
+            if (!c) return;
+            document.getElementById('editId').value = id;
+            document.getElementById('formTitle').textContent = '✏️ Editar cliente';
+            document.getElementById('formSub').textContent = 'Atualize os dados da caçamba';
+            document.getElementById('formSubmitBtn').textContent = 'Atualizar';
+            document.getElementById('btnDeleteForm').style.display = 'inline-block';
+            document.getElementById('btnEntregarForm').style.display = isAtivo(c.status) ? 'inline-block' : 'none';
+
+            document.getElementById('numero').value = c.numero || '';
+            document.getElementById('status').value = c.status || 'Em uso';
+            document.getElementById('cliente').value = c.cliente || '';
+            document.getElementById('endereco').value = c.endereco || '';
+            document.getElementById('dataRetirada').value = c.dataRetirada || '';
+            document.getElementById('dataDevolucao').value = c.dataDevolucao || '';
+            // Calcular dias aproximados se tiver data de retirada e devolução
+            if (c.dataRetirada && c.dataDevolucao) {
+                const d1 = new Date(c.dataRetirada);
+                const d2 = new Date(c.dataDevolucao);
+                const diff = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+                document.getElementById('diasDevolucao').value = diff || 30;
+            } else {
+                document.getElementById('diasDevolucao').value = 30;
+            }
+            document.getElementById('valor').value = c.valor || '';
+            document.getElementById('pagamento').value = c.pagamento || 'Pendente';
+            document.getElementById('observacoes').value = c.observacoes || '';
+            showPage('form');
+        }
+
+        // ─── Salvar (criar ou atualizar) ───
+        function saveClient(e) {
+            e.preventDefault();
+            const id = document.getElementById('editId').value;
+            const numero = document.getElementById('numero').value.trim();
+            const status = document.getElementById('status').value;
+            const cliente = document.getElementById('cliente').value.trim();
+            const endereco = document.getElementById('endereco').value.trim();
+            const dataRetirada = document.getElementById('dataRetirada').value;
+            const dataDevolucao = document.getElementById('dataDevolucao').value;
+            const valor = parseFloat(document.getElementById('valor').value) || 0;
+            const pagamento = document.getElementById('pagamento').value;
+            const observacoes = document.getElementById('observacoes').value.trim();
+            if (!numero || !cliente) { showToast('Preencha o número da caçamba e o nome do cliente.', 'error'); return; }
+            const clientData = { numero, status, cliente, endereco, dataRetirada, dataDevolucao, valor, pagamento, observacoes, dataEntrega: '' };
+            if (id) {
+                const idx = clients.findIndex(c => c.id === id);
+                if (idx !== -1) {
+                    // Preserva dataEntrega existente
+                    clientData.dataEntrega = clients[idx].dataEntrega || '';
+                    clients[idx] = { ...clients[idx], ...clientData };
+                }
+                showToast('Cliente atualizado com sucesso!', 'success');
+            } else {
+                clientData.id = generateId();
+                clients.push(clientData);
+                showToast('Cliente adicionado com sucesso!', 'success');
+            }
+            saveData();
+            showPage('dashboard');
+        }
+
+        // ─── Excluir da edição ───
+        function excluirDaEdicao() {
+            const id = document.getElementById('editId').value;
+            if (!id) return;
+            if (!confirm('Tem certeza que deseja excluir este cliente permanentemente?')) return;
+            clients = clients.filter(c => c.id !== id);
+            saveData();
+            showPage('dashboard');
+            showToast('Cliente removido permanentemente.', 'success');
+        }
+
+        // ─── Entregar da edição ───
+        function entregarDaEdicao() {
+            const id = document.getElementById('editId').value;
+            if (!id) return;
+            const c = clients.find(item => item.id === id);
+            if (!c) return;
+            if (c.status === 'Entregue' || c.status === 'Inativo') { showToast('Esta caçamba já foi entregue ou está inativa.', 'error'); return; }
+            if (!confirm(`Confirmar entrega da caçamba ${c.numero} para ${c.cliente}?`)) return;
+            const now = new Date().toISOString();
+            const copia = { ...c, dataEntrega: now, id: generateId() };
+            historico.push(copia);
+            saveHistorico();
+            const idx = clients.findIndex(item => item.id === id);
+            if (idx !== -1) {
+                clients[idx].status = 'Entregue';
+                clients[idx].dataEntrega = now;
+                saveData();
+            }
+            showPage('dashboard');
+            showToast(`✅ Caçamba ${c.numero} entregue!`, 'success');
+        }
+
+        // ─── Excluir do dashboard (remove permanente) ───
+        function deleteClient(id) {
+            if (!confirm('Tem certeza que deseja remover este cliente permanentemente?')) return;
+            clients = clients.filter(c => c.id !== id);
+            saveData();
+            renderStats(); renderTable();
+            showToast('Cliente removido.', 'success');
+        }
+
+        // ─── TOAST ───
+        function showToast(msg, type = 'success') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast show ' + type;
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => { t.className = 'toast'; }, 4000);
+        }
+
+        // ─── INICIALIZAÇÃO ───
+        loadData();
+        showPage('dashboard');
+        document.addEventListener('DOMContentLoaded', () => {
+            updateApiStatus();
+            document.getElementById('apiKeyInput').value = loadApiKey();
+            // Event listener para calcular devolução ao alterar data de retirada ou dias
+            document.getElementById('dataRetirada').addEventListener('change', calcularDevolucao);
+            document.getElementById('diasDevolucao').addEventListener('input', calcularDevolucao);
+        });
+        window.addEventListener('storage', (e) => {
+            if (e.key === STORAGE_KEY) {
+                loadData();
+                const page = document.querySelector('.sidebar-nav a.active')?.dataset.page || 'dashboard';
+                if (page === 'dashboard') { renderStats(); renderTable(); }
+                else if (page === 'agenda') renderAgenda();
+                else if (page === 'historico') renderHistorico();
+            }
+            if (e.key === STORAGE_HISTORICO_KEY) {
+                loadHistorico();
+                if (document.querySelector('.sidebar-nav a.active')?.dataset.page === 'historico') renderHistorico();
+            }
+        });
+    </script>
+</body>
+</html>
