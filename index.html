@@ -157,6 +157,7 @@
         .status-manutencao { background: #f0d4d4; color: #9f3e3e; }
         .status-entregue { background: #d4e0f0; color: #2a5a7a; }
         .status-inativo { background: #e0d4d4; color: #7a4a4a; }
+        .status-cheia { background: #f4d4a0; color: #7a5a2a; } /* Nova cor para "Cheia" */
         .pagamento-pago { color: var(--success); font-weight: 600; }
         .pagamento-pendente { color: var(--danger); font-weight: 600; }
         .actions-cell { display: flex; gap: 0.4rem; flex-wrap: wrap; }
@@ -243,7 +244,6 @@
             <a class="active" data-page="dashboard" onclick="showPage('dashboard')"><span class="icon">📊</span><span>Dashboard</span></a>
             <a data-page="agenda" onclick="showPage('agenda')"><span class="icon">📅</span><span>Agenda Hoje</span></a>
             <a data-page="historico" onclick="showPage('historico')"><span class="icon">📜</span><span>Histórico</span></a>
-            <!-- Removido o link "Adicionar" e "Novo cliente" pois não há criação de novos registros -->
             <a data-page="form" onclick="showPage('form'); openNewClient();" style="display:none;"></a>
         </nav>
         <div class="sidebar-footer">Chama Caçamba © 2025</div>
@@ -253,15 +253,15 @@
         <!-- DASHBOARD -->
         <section id="page-dashboard">
             <div class="topbar">
-                <div class="topbar-left"><h1>📋 Dashboard</h1><p>Gerencie as caçambas 00 a 15</p></div>
-                <!-- Botão "Novo cliente" removido - agora apenas uma mensagem -->
-                <span style="font-size:0.75rem;color:var(--text-light);">🔒 Caçambas fixas (00 a 15) – apenas edição e limpeza</span>
+                <div class="topbar-left"><h1>📋 Dashboard</h1><p>Gerencie as caçambas 0 a 15</p></div>
+                <span style="font-size:0.75rem;color:var(--text-light);">🔒 Caçambas fixas (0 a 15) – apenas edição e limpeza</span>
             </div>
             <div class="panel" style="padding:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;">
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Total</span><div style="font-size:1.5rem;font-weight:600;" id="totalCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Em uso</span><div style="font-size:1.5rem;font-weight:600;" id="emUsoCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Disponíveis</span><div style="font-size:1.5rem;font-weight:600;" id="disponivelCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Manutenção</span><div style="font-size:1.5rem;font-weight:600;" id="manutencaoCount">0</div></div>
+                <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Cheias</span><div style="font-size:1.5rem;font-weight:600;" id="cheiaCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">A receber</span><div style="font-size:1.5rem;font-weight:600;" id="totalReceber">R$ 0</div></div>
             </div>
             <div class="panel">
@@ -274,6 +274,7 @@
                             <option value="Em uso">Em uso</option>
                             <option value="Disponível">Disponível</option>
                             <option value="Manutenção">Manutenção</option>
+                            <option value="Cheia">Cheia</option>
                             <option value="Entregue">Entregue</option>
                             <option value="Inativo">Inativo</option>
                         </select>
@@ -377,13 +378,14 @@
                                 <option value="Em uso">Em uso</option>
                                 <option value="Disponível">Disponível</option>
                                 <option value="Manutenção">Manutenção</option>
+                                <option value="Cheia">Cheia</option>
                                 <option value="Entregue">Entregue</option>
                                 <option value="Inativo">Inativo</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Cliente *</label>
-                            <input type="text" id="cliente" placeholder="Nome do cliente">
+                            <label>Cliente</label>
+                            <input type="text" id="cliente" placeholder="Nome do cliente (opcional)">
                         </div>
                         <div class="form-group">
                             <label>Endereço</label>
@@ -420,7 +422,6 @@
                     </div>
                     <div class="form-actions">
                         <div style="flex:1;display:flex;gap:0.6rem;flex-wrap:wrap;">
-                            <!-- Botão "Excluir" removido -->
                             <button type="button" class="btn-success" id="btnEntregarForm" onclick="entregarDaEdicao()" style="display:none;">📦 Entregar</button>
                             <button type="button" class="btn-secondary" id="btnLimparForm" onclick="limparInformacoes()" style="display:none;">🧹 Limpar</button>
                         </div>
@@ -445,17 +446,18 @@
         const STORAGE_HISTORICO_KEY = 'chama_cacamba_historico';
         const API_KEY_STORAGE = 'chama_cacamba_api_key';
 
+        // 16 caçambas numeradas de 0 a 15
         const DEFAULT_DATA = [
-            { id: '1', numero: '00', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '2', numero: '01', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '3', numero: '02', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '4', numero: '03', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '5', numero: '04', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '6', numero: '05', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '7', numero: '06', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '8', numero: '07', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '9', numero: '08', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '10', numero: '09', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '1', numero: '0', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '2', numero: '1', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '3', numero: '2', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '4', numero: '3', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '5', numero: '4', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '6', numero: '5', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '7', numero: '6', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '8', numero: '7', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '9', numero: '8', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
+            { id: '10', numero: '9', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
             { id: '11', numero: '10', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
             { id: '12', numero: '11', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
             { id: '13', numero: '12', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
@@ -483,6 +485,7 @@
                 'Em uso': 'status-em-uso',
                 'Disponível': 'status-disponivel',
                 'Manutenção': 'status-manutencao',
+                'Cheia': 'status-cheia',
                 'Entregue': 'status-entregue',
                 'Inativo': 'status-inativo'
             };
@@ -568,11 +571,13 @@
             const emUso = ativos.filter(c => c.status === 'Em uso').length;
             const disponivel = ativos.filter(c => c.status === 'Disponível').length;
             const manutencao = ativos.filter(c => c.status === 'Manutenção').length;
+            const cheia = ativos.filter(c => c.status === 'Cheia').length;
             const totalReceber = clients.filter(c => c.pagamento !== 'Pago' && isAtivo(c.status)).reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
             document.getElementById('totalCount').textContent = total;
             document.getElementById('emUsoCount').textContent = emUso;
             document.getElementById('disponivelCount').textContent = disponivel;
             document.getElementById('manutencaoCount').textContent = manutencao;
+            document.getElementById('cheiaCount').textContent = cheia;
             document.getElementById('totalReceber').textContent = `R$ ${totalReceber.toFixed(2)}`;
         }
 
@@ -665,7 +670,7 @@
             window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`, '_blank');
         }
 
-        // ─── ENTREGAR ───
+        // ─── ENTREGAR (agora define status como "Disponível" e limpa os dados) ───
         function entregarCaçamba(id) {
             const idx = clients.findIndex(c => c.id === id);
             if (idx === -1) return;
@@ -673,17 +678,26 @@
             if (c.status === 'Entregue' || c.status === 'Inativo') { showToast('Esta caçamba já foi entregue ou está inativa.', 'error'); return; }
             if (!confirm(`Confirmar entrega da caçamba ${c.numero} para ${c.cliente}?`)) return;
             const now = new Date().toISOString();
+            // Salva no histórico (cópia independente)
             const copia = { ...c, dataEntrega: now, id: generateId() };
             historico.push(copia);
             saveHistorico();
-            clients[idx].status = 'Entregue';
+            // Atualiza o original: status para "Disponível" e limpa os dados do cliente
+            clients[idx].status = 'Disponível';
+            clients[idx].cliente = '';
+            clients[idx].endereco = '';
+            clients[idx].dataRetirada = '';
+            clients[idx].dataDevolucao = '';
+            clients[idx].valor = 0;
+            clients[idx].pagamento = 'Pendente';
+            clients[idx].observacoes = '';
             clients[idx].dataEntrega = now;
             saveData();
             renderAgenda();
             renderHistorico();
             renderStats();
             renderTable();
-            showToast(`✅ Caçamba ${c.numero} entregue e registrada no histórico!`, 'success');
+            showToast(`✅ Caçamba ${c.numero} entregue e disponível novamente!`, 'success');
         }
 
         // ─── HISTÓRICO ───
@@ -850,7 +864,7 @@
         // ─── FORMULÁRIO ───
         // Não há criação de novos clientes – apenas edição
         function openNewClient() {
-            showToast('🚫 Não é possível adicionar novas caçambas. Apenas edite as existentes (00 a 15).', 'error');
+            showToast('🚫 Não é possível adicionar novas caçambas. Apenas edite as existentes (0 a 15).', 'error');
             showPage('dashboard');
         }
 
@@ -883,7 +897,7 @@
             showPage('form');
         }
 
-        // ─── LIMPAR INFORMAÇÕES (mantém caçamba e número) ───
+        // ─── LIMPAR (agora também define status como "Disponível") ───
         function limparInformacoes() {
             const id = document.getElementById('editId').value;
             if (!id) return;
@@ -891,9 +905,11 @@
         }
 
         function limparInformacoesById(id) {
-            if (!confirm('Limpar todas as informações do cliente? A caçamba e o número serão mantidos.')) return;
+            if (!confirm('Limpar todas as informações do cliente? A caçamba ficará disponível.')) return;
             const idx = clients.findIndex(c => c.id === id);
             if (idx === -1) return;
+            // Define status como "Disponível" e limpa os dados
+            clients[idx].status = 'Disponível';
             clients[idx].cliente = '';
             clients[idx].endereco = '';
             clients[idx].dataRetirada = '';
@@ -902,9 +918,8 @@
             clients[idx].pagamento = 'Pendente';
             clients[idx].observacoes = '';
             clients[idx].dataEntrega = '';
-            // Não altera numero, status, id
             saveData();
-            // Atualiza a visualização do formulário (se estiver aberto)
+            // Atualiza a visualização do formulário se estiver aberto
             const c = clients[idx];
             document.getElementById('cliente').value = '';
             document.getElementById('endereco').value = '';
@@ -914,13 +929,13 @@
             document.getElementById('pagamento').value = 'Pendente';
             document.getElementById('observacoes').value = '';
             document.getElementById('diasDevolucao').value = 30;
-            showToast('Informações do cliente limpas com sucesso! A caçamba continua disponível.', 'success');
+            // Atualiza o status no select também
+            document.getElementById('status').value = 'Disponível';
+            showToast('Caçamba limpa e disponível!', 'success');
             renderTable();
             renderAgenda();
             renderStats();
-            // Se estiver na tela de edição, atualiza os campos
             if (document.getElementById('page-form').classList.contains('active')) {
-                // recarrega os dados do cliente atual
                 const currentId = document.getElementById('editId').value;
                 if (currentId) editClient(currentId);
             }
@@ -943,7 +958,7 @@
             const valor = parseFloat(document.getElementById('valor').value) || 0;
             const pagamento = document.getElementById('pagamento').value;
             const observacoes = document.getElementById('observacoes').value.trim();
-            if (!numero || !cliente) { showToast('Preencha o número da caçamba e o nome do cliente.', 'error'); return; }
+            if (!numero) { showToast('Preencha o número da caçamba.', 'error'); return; }
             const idx = clients.findIndex(c => c.id === id);
             if (idx === -1) { showToast('Caçamba não encontrada.', 'error'); return; }
             clients[idx].numero = numero;
@@ -967,9 +982,6 @@
             if (!id) return;
             entregarCaçamba(id);
         }
-
-        // ─── EXCLUIR (removido) ───
-        // As funções deleteClient e excluirDaEdicao foram removidas.
 
         function showToast(msg, type = 'success') {
             const t = document.getElementById('toast');
