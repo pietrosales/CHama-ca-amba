@@ -152,12 +152,11 @@
         tbody td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
         tbody tr:hover { background: #faf8f5; }
         .status-badge { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 40px; font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-        .status-em-uso { background: #e6d7c4; color: #7a4d2a; }
         .status-disponivel { background: #d4e0d4; color: #2f5a44; }
         .status-manutencao { background: #f0d4d4; color: #9f3e3e; }
+        .status-cheia { background: #f4d4a0; color: #7a5a2a; }
         .status-entregue { background: #d4e0f0; color: #2a5a7a; }
         .status-inativo { background: #e0d4d4; color: #7a4a4a; }
-        .status-cheia { background: #f4d4a0; color: #7a5a2a; } /* Nova cor para "Cheia" */
         .pagamento-pago { color: var(--success); font-weight: 600; }
         .pagamento-pendente { color: var(--danger); font-weight: 600; }
         .actions-cell { display: flex; gap: 0.4rem; flex-wrap: wrap; }
@@ -258,10 +257,10 @@
             </div>
             <div class="panel" style="padding:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;">
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Total</span><div style="font-size:1.5rem;font-weight:600;" id="totalCount">0</div></div>
-                <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Em uso</span><div style="font-size:1.5rem;font-weight:600;" id="emUsoCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Disponíveis</span><div style="font-size:1.5rem;font-weight:600;" id="disponivelCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Manutenção</span><div style="font-size:1.5rem;font-weight:600;" id="manutencaoCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Cheias</span><div style="font-size:1.5rem;font-weight:600;" id="cheiaCount">0</div></div>
+                <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Entregues</span><div style="font-size:1.5rem;font-weight:600;" id="entregueCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">A receber</span><div style="font-size:1.5rem;font-weight:600;" id="totalReceber">R$ 0</div></div>
             </div>
             <div class="panel">
@@ -271,7 +270,6 @@
                         <input type="text" id="searchInput" placeholder="Buscar..." oninput="renderTable()">
                         <select id="filterStatus" onchange="renderTable()">
                             <option value="">Todos</option>
-                            <option value="Em uso">Em uso</option>
                             <option value="Disponível">Disponível</option>
                             <option value="Manutenção">Manutenção</option>
                             <option value="Cheia">Cheia</option>
@@ -375,7 +373,6 @@
                         <div class="form-group">
                             <label>Status *</label>
                             <select id="status" required>
-                                <option value="Em uso">Em uso</option>
                                 <option value="Disponível">Disponível</option>
                                 <option value="Manutenção">Manutenção</option>
                                 <option value="Cheia">Cheia</option>
@@ -439,14 +436,13 @@
 
     <script>
         // ══════════════════════════════════════════
-        // CHAMA CAÇAMBA — apenas edição e limpeza, sem exclusão ou criação
+        // CHAMA CAÇAMBA — sem status "Em uso"
         // ══════════════════════════════════════════
 
         const STORAGE_KEY = 'chama_cacamba_clientes';
         const STORAGE_HISTORICO_KEY = 'chama_cacamba_historico';
         const API_KEY_STORAGE = 'chama_cacamba_api_key';
 
-        // 16 caçambas numeradas de 0 a 15
         const DEFAULT_DATA = [
             { id: '1', numero: '0', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
             { id: '2', numero: '1', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
@@ -482,7 +478,6 @@
         }
         function getStatusClass(status) {
             const map = {
-                'Em uso': 'status-em-uso',
                 'Disponível': 'status-disponivel',
                 'Manutenção': 'status-manutencao',
                 'Cheia': 'status-cheia',
@@ -492,6 +487,7 @@
             return map[status] || '';
         }
         function isAtivo(status) {
+            // "Entregue" e "Inativo" são considerados inativos
             return status !== 'Entregue' && status !== 'Inativo';
         }
         function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,4); }
@@ -566,18 +562,17 @@
 
         // ─── Dashboard ───
         function renderStats() {
-            const ativos = clients.filter(c => isAtivo(c.status));
-            const total = ativos.length;
-            const emUso = ativos.filter(c => c.status === 'Em uso').length;
-            const disponivel = ativos.filter(c => c.status === 'Disponível').length;
-            const manutencao = ativos.filter(c => c.status === 'Manutenção').length;
-            const cheia = ativos.filter(c => c.status === 'Cheia').length;
+            const total = clients.filter(c => isAtivo(c.status)).length;
+            const disponivel = clients.filter(c => c.status === 'Disponível').length;
+            const manutencao = clients.filter(c => c.status === 'Manutenção').length;
+            const cheia = clients.filter(c => c.status === 'Cheia').length;
+            const entregue = clients.filter(c => c.status === 'Entregue').length;
             const totalReceber = clients.filter(c => c.pagamento !== 'Pago' && isAtivo(c.status)).reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
             document.getElementById('totalCount').textContent = total;
-            document.getElementById('emUsoCount').textContent = emUso;
             document.getElementById('disponivelCount').textContent = disponivel;
             document.getElementById('manutencaoCount').textContent = manutencao;
             document.getElementById('cheiaCount').textContent = cheia;
+            document.getElementById('entregueCount').textContent = entregue;
             document.getElementById('totalReceber').textContent = `R$ ${totalReceber.toFixed(2)}`;
         }
 
@@ -670,7 +665,7 @@
             window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`, '_blank');
         }
 
-        // ─── ENTREGAR (agora define status como "Disponível" e limpa os dados) ───
+        // ─── ENTREGAR (agora define status como "Entregue") ───
         function entregarCaçamba(id) {
             const idx = clients.findIndex(c => c.id === id);
             if (idx === -1) return;
@@ -682,8 +677,8 @@
             const copia = { ...c, dataEntrega: now, id: generateId() };
             historico.push(copia);
             saveHistorico();
-            // Atualiza o original: status para "Disponível" e limpa os dados do cliente
-            clients[idx].status = 'Disponível';
+            // Atualiza o original: status para "Entregue" e limpa os dados
+            clients[idx].status = 'Entregue';
             clients[idx].cliente = '';
             clients[idx].endereco = '';
             clients[idx].dataRetirada = '';
@@ -697,7 +692,7 @@
             renderHistorico();
             renderStats();
             renderTable();
-            showToast(`✅ Caçamba ${c.numero} entregue e disponível novamente!`, 'success');
+            showToast(`✅ Caçamba ${c.numero} entregue!`, 'success');
         }
 
         // ─── HISTÓRICO ───
@@ -862,7 +857,6 @@
         }
 
         // ─── FORMULÁRIO ───
-        // Não há criação de novos clientes – apenas edição
         function openNewClient() {
             showToast('🚫 Não é possível adicionar novas caçambas. Apenas edite as existentes (0 a 15).', 'error');
             showPage('dashboard');
@@ -897,7 +891,7 @@
             showPage('form');
         }
 
-        // ─── LIMPAR (agora também define status como "Disponível") ───
+        // ─── LIMPAR (status muda para "Disponível") ───
         function limparInformacoes() {
             const id = document.getElementById('editId').value;
             if (!id) return;
@@ -908,7 +902,6 @@
             if (!confirm('Limpar todas as informações do cliente? A caçamba ficará disponível.')) return;
             const idx = clients.findIndex(c => c.id === id);
             if (idx === -1) return;
-            // Define status como "Disponível" e limpa os dados
             clients[idx].status = 'Disponível';
             clients[idx].cliente = '';
             clients[idx].endereco = '';
@@ -919,7 +912,6 @@
             clients[idx].observacoes = '';
             clients[idx].dataEntrega = '';
             saveData();
-            // Atualiza a visualização do formulário se estiver aberto
             const c = clients[idx];
             document.getElementById('cliente').value = '';
             document.getElementById('endereco').value = '';
@@ -929,7 +921,6 @@
             document.getElementById('pagamento').value = 'Pendente';
             document.getElementById('observacoes').value = '';
             document.getElementById('diasDevolucao').value = 30;
-            // Atualiza o status no select também
             document.getElementById('status').value = 'Disponível';
             showToast('Caçamba limpa e disponível!', 'success');
             renderTable();
@@ -941,7 +932,7 @@
             }
         }
 
-        // ─── SALVAR (apenas atualização, sem criação) ───
+        // ─── SALVAR (apenas atualização) ───
         function saveClient(e) {
             e.preventDefault();
             const id = document.getElementById('editId').value;
@@ -970,7 +961,6 @@
             clients[idx].valor = valor;
             clients[idx].pagamento = pagamento;
             clients[idx].observacoes = observacoes;
-            // Preserva dataEntrega se existir
             saveData();
             showToast('Caçamba atualizada com sucesso!', 'success');
             showPage('dashboard');
