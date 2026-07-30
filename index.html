@@ -5,7 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Chama Caçamba — Gestão</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
     <script>
+        // ══════════════════════════════════════════
+        //  FIREBASE CONFIG (cole aqui suas credenciais)
+        // ══════════════════════════════════════════
+        const firebaseConfig = {
+            apiKey: "AIzaSyBaHRGGj-nP8mFKJfAdmQ2f8uGXAUF4jRE",
+            authDomain: "chama-3c469.firebaseapp.com",
+            databaseURL: "https://chama-3c469-default-rtdb.firebaseio.com",
+            projectId: "chama-3c469",
+            storageBucket: "chama-3c469.firebasestorage.app",
+            messagingSenderId: "359332484535",
+            appId: "1:359332484535:web:9ca6a5c0f3b5ce22778432",
+            measurementId: "G-MJ6VVHT3TX"
+        };
+
+        // Inicializa Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // ─── Google Maps (mantido) ───
         function loadGoogleMaps() {
             const key = localStorage.getItem('chama_cacamba_api_key') || '';
             if (!key) return;
@@ -37,7 +61,9 @@
         }
         document.addEventListener('DOMContentLoaded', () => { loadGoogleMaps(); });
     </script>
+
     <style>
+        /* ─── ESTILOS (mesmos de antes) ─── */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
             --bg: #f4f2ed; --card: #ffffff; --border: #d6d0c4; --text: #2c2a28;
@@ -232,7 +258,6 @@
     </style>
 </head>
 <body>
-    <!-- Menu toggle para mobile -->
     <button class="menu-toggle" id="menuToggle" aria-label="Abrir menu">☰</button>
     <div class="overlay" id="overlay"></div>
 
@@ -326,7 +351,7 @@
             </div>
         </section>
 
-        <!-- HISTÓRICO (INDEPENDENTE) com exportação -->
+        <!-- HISTÓRICO -->
         <section id="page-historico" class="form-page">
             <div class="topbar">
                 <div class="topbar-left"><h1>📜 Histórico de Entregas</h1><p>Registro independente de caçambas entregues</p></div>
@@ -356,7 +381,7 @@
             </div>
         </section>
 
-        <!-- FORMULÁRIO (apenas edição, sem criar e sem excluir) -->
+        <!-- FORMULÁRIO -->
         <section id="page-form" class="form-page">
             <div class="topbar">
                 <div class="topbar-left"><h1 id="formTitle">✏️ Editar caçamba</h1><p id="formSub" class="sub">Preencha os dados do cliente e da caçamba</p></div>
@@ -436,46 +461,28 @@
 
     <script>
         // ══════════════════════════════════════════
-        // CHAMA CAÇAMBA — sem status "Em uso"
+        //  CHAMA CAÇAMBA — integrado com Firebase Realtime Database
         // ══════════════════════════════════════════
 
-        const STORAGE_KEY = 'chama_cacamba_clientes';
-        const STORAGE_HISTORICO_KEY = 'chama_cacamba_historico';
         const API_KEY_STORAGE = 'chama_cacamba_api_key';
 
-        const DEFAULT_DATA = [
-            { id: '1', numero: '0', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '2', numero: '1', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '3', numero: '2', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '4', numero: '3', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '5', numero: '4', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '6', numero: '5', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '7', numero: '6', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '8', numero: '7', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '9', numero: '8', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '10', numero: '9', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '11', numero: '10', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '12', numero: '11', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '13', numero: '12', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '14', numero: '13', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '15', numero: '14', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-            { id: '16', numero: '15', status: 'Disponível', cliente: '', endereco: '', dataRetirada: '', dataDevolucao: '', valor: 0, pagamento: 'Pendente', observacoes: '', dataEntrega: '' },
-        ];
+        // ─── Nós do Firebase ───
+        const CLIENTES_REF = database.ref('clientes');
+        const HISTORICO_REF = database.ref('historico');
 
+        // ─── Estado ───
         let clients = [];
         let historico = [];
         let routeData = null;
+        let loading = false;
 
         // ─── Funções auxiliares ───
         function getTodayString() { return new Date().toISOString().split('T')[0]; }
         function formatDateBR(dateStr) { if (!dateStr) return '-'; const p = dateStr.split('-'); if (p.length===3) return `${p[2]}/${p[1]}/${p[0]}`; return dateStr; }
         function formatDateTime(dateStr) { if (!dateStr) return '-'; try { const d = new Date(dateStr); return d.toLocaleString('pt-BR'); } catch(e){ return dateStr; } }
-        function isToday(dateStr) {
-            if (!dateStr) return false;
-            const p = dateStr.split('-'); if (p.length!==3) return false;
-            const h = new Date(); const mes = String(h.getMonth()+1).padStart(2,'0'); const dia = String(h.getDate()).padStart(2,'0');
-            return p[1]===mes && p[2]===dia;
-        }
+        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,4); }
+        function isAtivo(status) { return status !== 'Entregue' && status !== 'Inativo'; }
+
         function getStatusClass(status) {
             const map = {
                 'Disponível': 'status-disponivel',
@@ -486,78 +493,93 @@
             };
             return map[status] || '';
         }
-        function isAtivo(status) {
-            // "Entregue" e "Inativo" são considerados inativos
-            return status !== 'Entregue' && status !== 'Inativo';
-        }
-        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,4); }
 
-        // ─── Load / Save ───
-        function loadData() {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                try { clients = JSON.parse(stored); } catch(e){ clients = []; }
-                if (!clients.length) {
-                    clients = DEFAULT_DATA.map(c => ({ ...c, id: String(c.id), dataEntrega: c.dataEntrega || '' }));
-                    saveData();
+        // ─── Carregar dados do Firebase ───
+        function carregarDados() {
+            if (loading) return;
+            loading = true;
+            showToast('⏳ Carregando dados...', 'success');
+
+            // Carrega clientes
+            CLIENTES_REF.once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    clients = Object.values(data);
+                } else {
+                    // Se não houver dados, cria os padrão
+                    criarDadosPadrao();
                 }
-            } else {
-                clients = DEFAULT_DATA.map(c => ({ ...c, id: String(c.id), dataEntrega: c.dataEntrega || '' }));
-                saveData();
-            }
-            loadHistorico();
-        }
-        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(clients)); }
+                loading = false;
+                renderizarTudo();
+            }).catch((err) => {
+                loading = false;
+                showToast('❌ Erro ao carregar clientes: ' + err.message, 'error');
+            });
 
-        function loadHistorico() {
-            const stored = localStorage.getItem(STORAGE_HISTORICO_KEY);
-            if (stored) {
-                try { historico = JSON.parse(stored); } catch(e){ historico = []; }
-            } else {
-                historico = [];
-                saveHistorico();
-            }
-        }
-        function saveHistorico() { localStorage.setItem(STORAGE_HISTORICO_KEY, JSON.stringify(historico)); }
-
-        // ─── API Key ───
-        function loadApiKey() { return localStorage.getItem(API_KEY_STORAGE) || ''; }
-        function saveApiKey(key) {
-            localStorage.setItem(API_KEY_STORAGE, key.trim());
-            updateApiStatus();
-            if (key.trim()) { const old = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]'); if (old) old.remove(); loadGoogleMaps(); }
-        }
-        function updateApiStatus() {
-            const key = loadApiKey(); const status = document.getElementById('apiStatus'); const dot = status.querySelector('.dot');
-            if (key) { dot.className = 'dot green'; status.innerHTML = `<span class="dot green"></span> API configurada`; }
-            else { dot.className = 'dot red'; status.innerHTML = `<span class="dot red"></span> Não configurada`; }
-        }
-        function testApiKey() {
-            const key = document.getElementById('apiKeyInput').value.trim();
-            if (!key) { showToast('Digite uma API Key primeiro.', 'error'); return; }
-            if (typeof google === 'undefined' || !google.maps) { showToast('⏳ Aguarde a biblioteca carregar...', 'error'); return; }
-            const geocoder = new google.maps.Geocoder();
-            geocoder.geocode({ address: 'Av Paulista 1000' }, (results, status) => {
-                if (status === 'OK') { showToast('✅ API Key válida!', 'success'); saveApiKey(key); updateApiStatus(); }
-                else if (status === 'REQUEST_DENIED') { showToast('❌ API Key inválida ou não tem permissão.', 'error'); }
-                else { showToast(`❌ Erro: ${status}`, 'error'); }
+            // Carrega histórico
+            HISTORICO_REF.once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    historico = Object.values(data);
+                } else {
+                    historico = [];
+                }
+                renderHistorico();
+            }).catch((err) => {
+                showToast('❌ Erro ao carregar histórico: ' + err.message, 'error');
             });
         }
 
-        // ─── Cálculo automático da devolução ───
-        function calcularDevolucao() {
-            const dataRet = document.getElementById('dataRetirada').value;
-            const dias = parseInt(document.getElementById('diasDevolucao').value) || 0;
-            if (dataRet && dias > 0) {
-                const d = new Date(dataRet);
-                d.setDate(d.getDate() + dias);
-                const ano = d.getFullYear();
-                const mes = String(d.getMonth()+1).padStart(2,'0');
-                const dia = String(d.getDate()).padStart(2,'0');
-                document.getElementById('dataDevolucao').value = `${ano}-${mes}-${dia}`;
-            } else {
-                document.getElementById('dataDevolucao').value = '';
+        // ─── Salvar clientes no Firebase ───
+        function salvarClientes() {
+            // Converte array para objeto com chaves únicas
+            const obj = {};
+            clients.forEach(c => {
+                obj[c.id] = c;
+            });
+            CLIENTES_REF.set(obj).catch((err) => {
+                showToast('❌ Erro ao salvar: ' + err.message, 'error');
+            });
+        }
+
+        // ─── Salvar histórico no Firebase ───
+        function salvarHistorico() {
+            const obj = {};
+            historico.forEach(h => {
+                obj[h.id] = h;
+            });
+            HISTORICO_REF.set(obj).catch((err) => {
+                showToast('❌ Erro ao salvar histórico: ' + err.message, 'error');
+            });
+        }
+
+        // ─── Criar dados padrão (caçambas 0 a 15) ───
+        function criarDadosPadrao() {
+            clients = [];
+            for (let i = 0; i <= 15; i++) {
+                clients.push({
+                    id: generateId(),
+                    numero: String(i),
+                    status: 'Disponível',
+                    cliente: '',
+                    endereco: '',
+                    dataRetirada: '',
+                    dataDevolucao: '',
+                    valor: 0,
+                    pagamento: 'Pendente',
+                    observacoes: '',
+                    dataEntrega: ''
+                });
             }
+            salvarClientes();
+            showToast('✅ Dados padrão criados!', 'success');
+        }
+
+        // ─── Renderizar tudo ───
+        function renderizarTudo() {
+            renderStats();
+            renderTable();
+            renderAgenda();
         }
 
         // ─── Dashboard ───
@@ -568,6 +590,7 @@
             const cheia = clients.filter(c => c.status === 'Cheia').length;
             const entregue = clients.filter(c => c.status === 'Entregue').length;
             const totalReceber = clients.filter(c => c.pagamento !== 'Pago' && isAtivo(c.status)).reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
+
             document.getElementById('totalCount').textContent = total;
             document.getElementById('disponivelCount').textContent = disponivel;
             document.getElementById('manutencaoCount').textContent = manutencao;
@@ -577,21 +600,23 @@
         }
 
         function renderTable() {
-            const sortedClients = [...clients].sort((a, b) => parseInt(a.numero) - parseInt(b.numero));
             const search = document.getElementById('searchInput').value.toLowerCase();
             const filterStatus = document.getElementById('filterStatus').value;
             const tbody = document.getElementById('tableBody');
-            let filtered = sortedClients;
+
+            let filtered = [...clients].sort((a, b) => parseInt(a.numero) - parseInt(b.numero));
             if (filterStatus) filtered = filtered.filter(c => c.status === filterStatus);
             if (search) filtered = filtered.filter(c => 
                 c.cliente.toLowerCase().includes(search) || 
                 c.endereco.toLowerCase().includes(search) || 
                 c.numero.includes(search)
             );
+
             if (!filtered.length) {
                 tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-light);">Nenhuma caçamba encontrada.</td></tr>`;
                 return;
             }
+
             tbody.innerHTML = filtered.map(c => `
                 <tr>
                     <td><strong>${c.numero}</strong></td>
@@ -614,6 +639,13 @@
         }
 
         // ─── AGENDA ───
+        function isToday(dateStr) {
+            if (!dateStr) return false;
+            const p = dateStr.split('-'); if (p.length!==3) return false;
+            const h = new Date(); const mes = String(h.getMonth()+1).padStart(2,'0'); const dia = String(h.getDate()).padStart(2,'0');
+            return p[1]===mes && p[2]===dia;
+        }
+
         function renderAgenda() {
             const hoje = new Date();
             const diaMes = `${String(hoje.getDate()).padStart(2,'0')}/${String(hoje.getMonth()+1).padStart(2,'0')}`;
@@ -624,6 +656,7 @@
             document.getElementById('devolucaoCount').textContent = devolucoes.length;
             const colocacaoList = document.getElementById('colocacaoList');
             const devolucaoList = document.getElementById('devolucaoList');
+
             colocacaoList.innerHTML = colocacoes.length ? colocacoes.map(c => {
                 const isEntregue = c.status === 'Entregue' || c.status === 'Inativo';
                 const extraClass = isEntregue ? 'tipo-entregue' : 'tipo-colocacao';
@@ -641,6 +674,7 @@
                     </div>
                 </div>`;
             }).join('') : `<div class="agenda-vazia"><span class="emoji">✅</span>Nenhuma colocação agendada para hoje.</div>`;
+
             devolucaoList.innerHTML = devolucoes.length ? devolucoes.map(c => {
                 const isEntregue = c.status === 'Entregue' || c.status === 'Inativo';
                 const extraClass = isEntregue ? 'tipo-entregue' : 'tipo-devolucao';
@@ -665,7 +699,7 @@
             window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`, '_blank');
         }
 
-        // ─── ENTREGAR (agora define status como "Entregue") ───
+        // ─── ENTREGAR ───
         function entregarCaçamba(id) {
             const idx = clients.findIndex(c => c.id === id);
             if (idx === -1) return;
@@ -673,11 +707,9 @@
             if (c.status === 'Entregue' || c.status === 'Inativo') { showToast('Esta caçamba já foi entregue ou está inativa.', 'error'); return; }
             if (!confirm(`Confirmar entrega da caçamba ${c.numero} para ${c.cliente}?`)) return;
             const now = new Date().toISOString();
-            // Salva no histórico (cópia independente)
             const copia = { ...c, dataEntrega: now, id: generateId() };
             historico.push(copia);
-            saveHistorico();
-            // Atualiza o original: status para "Entregue" e limpa os dados
+            salvarHistorico();
             clients[idx].status = 'Entregue';
             clients[idx].cliente = '';
             clients[idx].endereco = '';
@@ -687,12 +719,39 @@
             clients[idx].pagamento = 'Pendente';
             clients[idx].observacoes = '';
             clients[idx].dataEntrega = now;
-            saveData();
-            renderAgenda();
+            salvarClientes();
+            renderizarTudo();
             renderHistorico();
-            renderStats();
-            renderTable();
             showToast(`✅ Caçamba ${c.numero} entregue!`, 'success');
+        }
+
+        // ─── LIMPAR ───
+        function limparInformacoes() {
+            const id = document.getElementById('editId').value;
+            if (!id) return;
+            limparInformacoesById(id);
+        }
+
+        function limparInformacoesById(id) {
+            if (!confirm('Limpar todas as informações do cliente? A caçamba ficará disponível.')) return;
+            const idx = clients.findIndex(c => c.id === id);
+            if (idx === -1) return;
+            clients[idx].status = 'Disponível';
+            clients[idx].cliente = '';
+            clients[idx].endereco = '';
+            clients[idx].dataRetirada = '';
+            clients[idx].dataDevolucao = '';
+            clients[idx].valor = 0;
+            clients[idx].pagamento = 'Pendente';
+            clients[idx].observacoes = '';
+            clients[idx].dataEntrega = '';
+            salvarClientes();
+            renderizarTudo();
+            if (document.getElementById('page-form').classList.contains('active')) {
+                const currentId = document.getElementById('editId').value;
+                if (currentId) editClient(currentId);
+            }
+            showToast('Caçamba limpa e disponível!', 'success');
         }
 
         // ─── HISTÓRICO ───
@@ -726,12 +785,11 @@
         function excluirHistorico(id) {
             if (!confirm('Excluir permanentemente este registro do histórico? Esta ação não pode ser desfeita.')) return;
             historico = historico.filter(h => h.id !== id);
-            saveHistorico();
+            salvarHistorico();
             renderHistorico();
             showToast('Registro excluído do histórico.', 'success');
         }
 
-        // ─── EXPORTAÇÃO CSV ───
         function exportarHistoricoCSV() {
             if (historico.length === 0) {
                 showToast('⚠️ Histórico vazio. Nada para exportar.', 'error');
@@ -762,6 +820,46 @@
             link.click();
             document.body.removeChild(link);
             showToast('✅ Histórico exportado com sucesso!', 'success');
+        }
+
+        // ─── Cálculo de devolução ───
+        function calcularDevolucao() {
+            const dataRet = document.getElementById('dataRetirada').value;
+            const dias = parseInt(document.getElementById('diasDevolucao').value) || 0;
+            if (dataRet && dias > 0) {
+                const d = new Date(dataRet);
+                d.setDate(d.getDate() + dias);
+                const ano = d.getFullYear();
+                const mes = String(d.getMonth()+1).padStart(2,'0');
+                const dia = String(d.getDate()).padStart(2,'0');
+                document.getElementById('dataDevolucao').value = `${ano}-${mes}-${dia}`;
+            } else {
+                document.getElementById('dataDevolucao').value = '';
+            }
+        }
+
+        // ─── API Key ───
+        function loadApiKey() { return localStorage.getItem(API_KEY_STORAGE) || ''; }
+        function saveApiKey(key) {
+            localStorage.setItem(API_KEY_STORAGE, key.trim());
+            updateApiStatus();
+            if (key.trim()) { const old = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]'); if (old) old.remove(); loadGoogleMaps(); }
+        }
+        function updateApiStatus() {
+            const key = loadApiKey(); const status = document.getElementById('apiStatus'); const dot = status.querySelector('.dot');
+            if (key) { dot.className = 'dot green'; status.innerHTML = `<span class="dot green"></span> API configurada`; }
+            else { dot.className = 'dot red'; status.innerHTML = `<span class="dot red"></span> Não configurada`; }
+        }
+        function testApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (!key) { showToast('Digite uma API Key primeiro.', 'error'); return; }
+            if (typeof google === 'undefined' || !google.maps) { showToast('⏳ Aguarde a biblioteca carregar...', 'error'); return; }
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ address: 'Av Paulista 1000' }, (results, status) => {
+                if (status === 'OK') { showToast('✅ API Key válida!', 'success'); saveApiKey(key); updateApiStatus(); }
+                else if (status === 'REQUEST_DENIED') { showToast('❌ API Key inválida ou não tem permissão.', 'error'); }
+                else { showToast(`❌ Erro: ${status}`, 'error'); }
+            });
         }
 
         // ─── ROTEIRIZAÇÃO ───
@@ -809,29 +907,6 @@
             resultDiv.classList.add('show'); resultDiv.scrollIntoView({ behavior:'smooth', block:'start' });
         }
         function openRouteInMaps() { if (routeData && routeData.url) { window.open(routeData.url,'_blank'); } else { showToast('⚠️ Nenhuma rota calculada ainda.', 'error'); } }
-
-        // ─── MOBILE MENU ───
-        function toggleMenu(open) {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('overlay');
-            if (open) {
-                sidebar.classList.add('open');
-                overlay.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            } else {
-                sidebar.classList.remove('open');
-                overlay.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-        }
-        document.getElementById('menuToggle').addEventListener('click', () => toggleMenu(true));
-        document.getElementById('closeToggle').addEventListener('click', () => toggleMenu(false));
-        document.getElementById('overlay').addEventListener('click', () => toggleMenu(false));
-        document.querySelectorAll('.sidebar-nav a').forEach(el => {
-            el.addEventListener('click', () => {
-                if (window.innerWidth <= 768) toggleMenu(false);
-            });
-        });
 
         // ─── NAVEGAÇÃO ───
         function showPage(page) {
@@ -891,48 +966,6 @@
             showPage('form');
         }
 
-        // ─── LIMPAR (status muda para "Disponível") ───
-        function limparInformacoes() {
-            const id = document.getElementById('editId').value;
-            if (!id) return;
-            limparInformacoesById(id);
-        }
-
-        function limparInformacoesById(id) {
-            if (!confirm('Limpar todas as informações do cliente? A caçamba ficará disponível.')) return;
-            const idx = clients.findIndex(c => c.id === id);
-            if (idx === -1) return;
-            clients[idx].status = 'Disponível';
-            clients[idx].cliente = '';
-            clients[idx].endereco = '';
-            clients[idx].dataRetirada = '';
-            clients[idx].dataDevolucao = '';
-            clients[idx].valor = 0;
-            clients[idx].pagamento = 'Pendente';
-            clients[idx].observacoes = '';
-            clients[idx].dataEntrega = '';
-            saveData();
-            const c = clients[idx];
-            document.getElementById('cliente').value = '';
-            document.getElementById('endereco').value = '';
-            document.getElementById('dataRetirada').value = '';
-            document.getElementById('dataDevolucao').value = '';
-            document.getElementById('valor').value = '';
-            document.getElementById('pagamento').value = 'Pendente';
-            document.getElementById('observacoes').value = '';
-            document.getElementById('diasDevolucao').value = 30;
-            document.getElementById('status').value = 'Disponível';
-            showToast('Caçamba limpa e disponível!', 'success');
-            renderTable();
-            renderAgenda();
-            renderStats();
-            if (document.getElementById('page-form').classList.contains('active')) {
-                const currentId = document.getElementById('editId').value;
-                if (currentId) editClient(currentId);
-            }
-        }
-
-        // ─── SALVAR (apenas atualização) ───
         function saveClient(e) {
             e.preventDefault();
             const id = document.getElementById('editId').value;
@@ -961,18 +994,41 @@
             clients[idx].valor = valor;
             clients[idx].pagamento = pagamento;
             clients[idx].observacoes = observacoes;
-            saveData();
+            salvarClientes();
             showToast('Caçamba atualizada com sucesso!', 'success');
             showPage('dashboard');
         }
 
-        // ─── ENTREGAR DA EDIÇÃO ───
         function entregarDaEdicao() {
             const id = document.getElementById('editId').value;
             if (!id) return;
             entregarCaçamba(id);
         }
 
+        // ─── MOBILE MENU ───
+        function toggleMenu(open) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            if (open) {
+                sidebar.classList.add('open');
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            } else {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+        document.getElementById('menuToggle').addEventListener('click', () => toggleMenu(true));
+        document.getElementById('closeToggle').addEventListener('click', () => toggleMenu(false));
+        document.getElementById('overlay').addEventListener('click', () => toggleMenu(false));
+        document.querySelectorAll('.sidebar-nav a').forEach(el => {
+            el.addEventListener('click', () => {
+                if (window.innerWidth <= 768) toggleMenu(false);
+            });
+        });
+
+        // ─── TOAST ───
         function showToast(msg, type = 'success') {
             const t = document.getElementById('toast');
             t.textContent = msg;
@@ -982,7 +1038,7 @@
         }
 
         // ─── INICIALIZAÇÃO ───
-        loadData();
+        carregarDados();
         showPage('dashboard');
         document.addEventListener('DOMContentLoaded', () => {
             updateApiStatus();
@@ -990,17 +1046,21 @@
             document.getElementById('dataRetirada').addEventListener('change', calcularDevolucao);
             document.getElementById('diasDevolucao').addEventListener('input', calcularDevolucao);
         });
-        window.addEventListener('storage', (e) => {
-            if (e.key === STORAGE_KEY) {
-                loadData();
-                const page = document.querySelector('.sidebar-nav a.active')?.dataset.page || 'dashboard';
-                if (page === 'dashboard') { renderStats(); renderTable(); }
-                else if (page === 'agenda') renderAgenda();
-                else if (page === 'historico') renderHistorico();
+
+        // Escuta mudanças em tempo real no Firebase
+        CLIENTES_REF.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                clients = Object.values(data);
+                renderizarTudo();
             }
-            if (e.key === STORAGE_HISTORICO_KEY) {
-                loadHistorico();
-                if (document.querySelector('.sidebar-nav a.active')?.dataset.page === 'historico') renderHistorico();
+        });
+
+        HISTORICO_REF.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                historico = Object.values(data);
+                renderHistorico();
             }
         });
     </script>
