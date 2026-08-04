@@ -267,6 +267,7 @@
         <nav class="sidebar-nav">
             <a class="active" data-page="dashboard" onclick="showPage('dashboard')"><span class="icon">📊</span><span>Dashboard</span></a>
             <a data-page="agenda" onclick="showPage('agenda')"><span class="icon">📅</span><span>Agenda Hoje</span></a>
+            <a data-page="cadastro-clientes" onclick="showPage('cadastro-clientes')"><span class="icon">👥</span><span>Clientes</span></a>
             <a data-page="historico" onclick="showPage('historico')"><span class="icon">📜</span><span>Histórico</span></a>
             <a data-page="form" onclick="showPage('form'); openNewClient();" style="display:none;"></a>
         </nav>
@@ -351,11 +352,38 @@
             </div>
         </section>
 
+        <!-- CADASTRO PERMANENTE DE CLIENTES -->
+        <section id="page-cadastro-clientes" class="form-page">
+            <div class="topbar">
+                <div class="topbar-left"><h1>👥 Cadastro de Clientes</h1><p>Consulte reservas e a quantidade de pedidos de cada cliente</p></div>
+                <button class="btn-secondary" onclick="showPage('dashboard')">← Voltar</button>
+            </div>
+            <div class="panel" style="padding:1.5rem;margin-bottom:1.5rem;">
+                <div class="form-row">
+                    <div class="form-group"><label>Nome *</label><input id="cadNome" type="text" placeholder="Nome do cliente"></div>
+                    <div class="form-group"><label>Telefone / WhatsApp</label><input id="cadTelefone" type="tel" placeholder="(00) 00000-0000"></div>
+                    <div class="form-group"><label>CPF / CNPJ</label><input id="cadDocumento" type="text"></div>
+                    <div class="form-group"><label>Endereço</label><input id="cadEndereco" type="text"></div>
+                    <div class="form-group"><label>Possui reserva?</label><select id="cadReserva"><option value="Não">Não</option><option value="Sim">Sim</option></select></div>
+                    <div class="form-group"><label>Data da reserva</label><input id="cadDataReserva" type="date"></div>
+                </div>
+                <div class="form-group full"><label>Observações do cliente</label><textarea id="cadObservacoes"></textarea></div>
+                <div class="form-actions"><button class="btn-primary" type="button" onclick="salvarCadastroCliente()">Cadastrar cliente</button></div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">Clientes cadastrados</span><div class="panel-controls"><input id="cadastroSearch" type="text" placeholder="Buscar cliente..." oninput="renderCadastroClientes()"><select id="cadastroReservaFiltro" onchange="renderCadastroClientes()"><option value="">Todas as reservas</option><option value="Sim">Com reserva</option><option value="Não">Sem reserva</option></select></div></div>
+                <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Telefone</th><th>CPF/CNPJ</th><th>Reserva</th><th>Data reserva</th><th>Pedidos</th><th>Último pedido</th><th>Endereço</th><th>Ações</th></tr></thead><tbody id="cadastroClientesBody"></tbody></table></div>
+            </div>
+        </section>
+
         <!-- HISTÓRICO -->
         <section id="page-historico" class="form-page">
             <div class="topbar">
                 <div class="topbar-left"><h1>📜 Histórico de Entregas</h1><p>Registro independente de caçambas entregues</p></div>
                 <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+                    <button class="btn-route" onclick="exportarBackup()">💾 Backup JSON</button>
+                    <button class="btn-secondary" onclick="document.getElementById('backupInput').click()">📂 Restaurar</button>
+                    <input type="file" id="backupInput" accept="application/json,.json" hidden onchange="importarBackup(event)">
                     <button class="btn-export" onclick="exportarHistoricoCSV()">📤 Exportar CSV</button>
                     <button class="btn-secondary" onclick="showPage('dashboard')">← Voltar</button>
                 </div>
@@ -374,7 +402,7 @@
                 </div>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>N°</th><th>Cliente</th><th>Endereço</th><th>Status</th><th>Colocação</th><th>Devolução</th><th>Valor</th><th>Pagamento</th><th>Data Entrega</th><th>Ações</th></tr></thead>
+                        <thead><tr><th>N°</th><th>Cliente</th><th>Telefone</th><th>CPF/CNPJ</th><th>Novo?</th><th>Endereço</th><th>Status</th><th>Pedido</th><th>Colocação</th><th>Dias</th><th>Previsão</th><th>Coleta real</th><th>Valor</th><th>Pagamento</th><th>Forma</th><th>Conta/Favorecido</th><th>Destino</th><th>Descarga</th><th>Pgto. usina</th><th>Valor usina</th><th>Entrega</th><th>Observações</th><th>Ações</th></tr></thead>
                         <tbody id="historicoBody"></tbody>
                     </table>
                 </div>
@@ -410,8 +438,24 @@
                             <input type="text" id="cliente" placeholder="Nome do cliente (opcional)">
                         </div>
                         <div class="form-group">
+                            <label>Telefone / WhatsApp</label>
+                            <input type="tel" id="telefone" placeholder="(00) 00000-0000">
+                        </div>
+                        <div class="form-group">
+                            <label>CPF / CNPJ</label>
+                            <input type="text" id="documento" placeholder="Documento para nota fiscal">
+                        </div>
+                        <div class="form-group">
+                            <label>Origem do cliente</label>
+                            <select id="clienteNovo"><option value="Não">Recorrente</option><option value="Sim">Cliente novo</option></select>
+                        </div>
+                        <div class="form-group">
                             <label>Endereço</label>
                             <input type="text" id="endereco" placeholder="Rua, número, bairro">
+                        </div>
+                        <div class="form-group">
+                            <label>Data do pedido</label>
+                            <input type="date" id="dataPedido">
                         </div>
                         <div class="form-group">
                             <label>Data colocação</label>
@@ -422,8 +466,12 @@
                             <input type="number" id="diasDevolucao" min="0" value="30" oninput="calcularDevolucao()">
                         </div>
                         <div class="form-group">
-                            <label>Data devolução</label>
+                            <label>Previsão de coleta</label>
                             <input type="date" id="dataDevolucao" readonly style="background:#e8e4de;">
+                        </div>
+                        <div class="form-group">
+                            <label>Data real da coleta</label>
+                            <input type="date" id="dataColeta">
                         </div>
                         <div class="form-group">
                             <label>Valor (R$)</label>
@@ -436,6 +484,30 @@
                                 <option value="Pendente">Pendente</option>
                                 <option value="Parcial">Parcial</option>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Forma de pagamento</label>
+                            <select id="formaPagamento"><option value="PIX">PIX</option><option value="Dinheiro">Dinheiro</option><option value="Cartão">Cartão</option><option value="Transferência">Transferência</option><option value="Boleto">Boleto</option><option value="Outro">Outro</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Conta / favorecido</label>
+                            <input type="text" id="contaPagamento" placeholder="Conta própria, usina ou fornecedor">
+                        </div>
+                        <div class="form-group">
+                            <label>Destino do descarte</label>
+                            <select id="destinoDescarte"><option value="">Selecione</option><option value="Usina">Usina</option><option value="Pátio">Pátio</option><option value="Outro local">Outro local</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Data de descarga</label>
+                            <input type="date" id="dataDescarga">
+                        </div>
+                        <div class="form-group">
+                            <label>Data de pagamento da usina</label>
+                            <input type="date" id="dataPagamentoUsina">
+                        </div>
+                        <div class="form-group">
+                            <label>Valor pago à usina (R$)</label>
+                            <input type="number" id="valorUsina" min="0" step="0.01">
                         </div>
                     </div>
                     <div class="form-group full">
@@ -469,10 +541,12 @@
         // ─── Nós do Firebase ───
         const CLIENTES_REF = database.ref('clientes');
         const HISTORICO_REF = database.ref('historico');
+        const CADASTRO_CLIENTES_REF = database.ref('cadastroClientes');
 
         // ─── Estado ───
         let clients = [];
         let historico = [];
+        let cadastroClientes = [];
         let routeData = null;
         let loading = false;
 
@@ -482,6 +556,8 @@
         function formatDateTime(dateStr) { if (!dateStr) return '-'; try { const d = new Date(dateStr); return d.toLocaleString('pt-BR'); } catch(e){ return dateStr; } }
         function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,4); }
         function isAtivo(status) { return status !== 'Entregue' && status !== 'Inativo'; }
+        function normalizar(valor) { return String(valor || '').trim().toLowerCase().replace(/\D/g, '') || String(valor || '').trim().toLowerCase(); }
+        function chaveCliente(c) { return normalizar(c.documento) || normalizar(c.telefone) || normalizar(c.cliente || c.nome); }
 
         function getStatusClass(status) {
             const map = {
@@ -528,6 +604,13 @@
             }).catch((err) => {
                 showToast('❌ Erro ao carregar histórico: ' + err.message, 'error');
             });
+
+            CADASTRO_CLIENTES_REF.once('value', (snapshot) => {
+                const data = snapshot.val();
+                cadastroClientes = data ? Object.values(data) : [];
+                sincronizarCadastrosExistentes();
+                renderCadastroClientes();
+            }).catch((err) => showToast('❌ Erro ao carregar cadastro de clientes: ' + err.message, 'error'));
         }
 
         // ─── Salvar clientes no Firebase ───
@@ -553,6 +636,35 @@
             });
         }
 
+        function salvarCadastros() {
+            const obj = {}; cadastroClientes.forEach(c => obj[c.id] = c);
+            CADASTRO_CLIENTES_REF.set(obj).catch((err) => showToast('❌ Erro ao salvar cadastro: ' + err.message, 'error'));
+        }
+
+        function atualizarCadastroDaLocacao(locacao) {
+            if (!locacao.cliente) return;
+            const chave = chaveCliente(locacao);
+            let cadastro = cadastroClientes.find(c => chaveCliente(c) === chave);
+            if (!cadastro) {
+                cadastro = { id: generateId(), nome: locacao.cliente, telefone: locacao.telefone || '', documento: locacao.documento || '', endereco: locacao.endereco || '', reserva: locacao.dataPedido && !locacao.dataRetirada ? 'Sim' : 'Não', dataReserva: locacao.dataPedido || '', observacoes: '', criadoEm: new Date().toISOString() };
+                cadastroClientes.push(cadastro);
+            } else {
+                cadastro.nome = locacao.cliente || cadastro.nome; cadastro.telefone = locacao.telefone || cadastro.telefone;
+                cadastro.documento = locacao.documento || cadastro.documento; cadastro.endereco = locacao.endereco || cadastro.endereco;
+                if (locacao.dataPedido && !locacao.dataRetirada) { cadastro.reserva = 'Sim'; cadastro.dataReserva = locacao.dataPedido; }
+            }
+            salvarCadastros(); renderCadastroClientes();
+        }
+
+        function sincronizarCadastrosExistentes() {
+            let alterou = false;
+            [...historico, ...clients].filter(c => c.cliente).forEach(locacao => {
+                const chave = chaveCliente(locacao); if (!chave || cadastroClientes.some(c => chaveCliente(c) === chave)) return;
+                cadastroClientes.push({ id: generateId(), nome: locacao.cliente, telefone: locacao.telefone || '', documento: locacao.documento || '', endereco: locacao.endereco || '', reserva: locacao.dataPedido && !locacao.dataRetirada ? 'Sim' : 'Não', dataReserva: locacao.dataPedido && !locacao.dataRetirada ? locacao.dataPedido : '', observacoes: '', criadoEm: new Date().toISOString() }); alterou = true;
+            });
+            if (alterou) salvarCadastros();
+        }
+
         // ─── Criar dados padrão (caçambas 0 a 15) ───
         function criarDadosPadrao() {
             clients = [];
@@ -562,11 +674,14 @@
                     numero: String(i),
                     status: 'Disponível',
                     cliente: '',
+                    telefone: '', documento: '', clienteNovo: 'Não', dataPedido: '',
                     endereco: '',
-                    dataRetirada: '',
+                    dataRetirada: '', diasLocacao: 30,
                     dataDevolucao: '',
                     valor: 0,
                     pagamento: 'Pendente',
+                    formaPagamento: 'PIX', contaPagamento: '', dataColeta: '',
+                    destinoDescarte: '', dataDescarga: '', dataPagamentoUsina: '', valorUsina: 0,
                     observacoes: '',
                     dataEntrega: ''
                 });
@@ -607,8 +722,10 @@
             let filtered = [...clients].sort((a, b) => parseInt(a.numero) - parseInt(b.numero));
             if (filterStatus) filtered = filtered.filter(c => c.status === filterStatus);
             if (search) filtered = filtered.filter(c => 
-                c.cliente.toLowerCase().includes(search) || 
-                c.endereco.toLowerCase().includes(search) || 
+                (c.cliente || '').toLowerCase().includes(search) || 
+                (c.endereco || '').toLowerCase().includes(search) ||
+                (c.telefone || '').toLowerCase().includes(search) ||
+                (c.documento || '').toLowerCase().includes(search) ||
                 c.numero.includes(search)
             );
 
@@ -712,11 +829,14 @@
             salvarHistorico();
             clients[idx].status = 'Entregue';
             clients[idx].cliente = '';
+            clients[idx].telefone = ''; clients[idx].documento = ''; clients[idx].clienteNovo = 'Não'; clients[idx].dataPedido = '';
             clients[idx].endereco = '';
             clients[idx].dataRetirada = '';
             clients[idx].dataDevolucao = '';
             clients[idx].valor = 0;
             clients[idx].pagamento = 'Pendente';
+            clients[idx].formaPagamento = 'PIX'; clients[idx].contaPagamento = ''; clients[idx].dataColeta = '';
+            clients[idx].destinoDescarte = ''; clients[idx].dataDescarga = ''; clients[idx].dataPagamentoUsina = ''; clients[idx].valorUsina = 0;
             clients[idx].observacoes = '';
             clients[idx].dataEntrega = now;
             salvarClientes();
@@ -738,11 +858,14 @@
             if (idx === -1) return;
             clients[idx].status = 'Disponível';
             clients[idx].cliente = '';
+            clients[idx].telefone = ''; clients[idx].documento = ''; clients[idx].clienteNovo = 'Não'; clients[idx].dataPedido = '';
             clients[idx].endereco = '';
             clients[idx].dataRetirada = '';
             clients[idx].dataDevolucao = '';
             clients[idx].valor = 0;
             clients[idx].pagamento = 'Pendente';
+            clients[idx].formaPagamento = 'PIX'; clients[idx].contaPagamento = ''; clients[idx].dataColeta = '';
+            clients[idx].destinoDescarte = ''; clients[idx].dataDescarga = ''; clients[idx].dataPagamentoUsina = ''; clients[idx].valorUsina = 0;
             clients[idx].observacoes = '';
             clients[idx].dataEntrega = '';
             salvarClientes();
@@ -754,6 +877,51 @@
             showToast('Caçamba limpa e disponível!', 'success');
         }
 
+        // ─── CADASTRO PERMANENTE DE CLIENTES ───
+        function dadosPedidosCliente(cadastro) {
+            const chave = chaveCliente(cadastro);
+            const registros = [...historico, ...clients.filter(c => c.cliente)].filter(item => chaveCliente(item) === chave);
+            const datas = registros.map(item => item.dataPedido || item.dataRetirada || item.dataEntrega).filter(Boolean).sort();
+            return { total: registros.length, ultimo: datas.length ? datas[datas.length - 1] : '' };
+        }
+
+        function renderCadastroClientes() {
+            const tbody = document.getElementById('cadastroClientesBody'); if (!tbody) return;
+            const search = (document.getElementById('cadastroSearch')?.value || '').toLowerCase();
+            const filtro = document.getElementById('cadastroReservaFiltro')?.value || '';
+            let lista = cadastroClientes.filter(c => !filtro || c.reserva === filtro);
+            if (search) lista = lista.filter(c => [c.nome,c.telefone,c.documento,c.endereco].some(v => String(v || '').toLowerCase().includes(search)));
+            lista.sort((a,b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
+            if (!lista.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-light);">Nenhum cliente cadastrado.</td></tr>'; return; }
+            tbody.innerHTML = lista.map(c => { const pedidos = dadosPedidosCliente(c); return `<tr>
+                <td><strong>${c.nome || '-'}</strong></td><td>${c.telefone || '-'}</td><td>${c.documento || '-'}</td>
+                <td><span class="status-badge ${c.reserva === 'Sim' ? 'status-cheia' : 'status-disponivel'}">${c.reserva || 'Não'}</span></td>
+                <td>${formatDateBR(c.dataReserva)}</td><td><strong>${pedidos.total}</strong></td><td>${formatDateBR(pedidos.ultimo)}</td><td>${c.endereco || '-'}</td>
+                <td><div class="actions-cell"><button onclick="alternarReservaCliente('${c.id}')">📅 Reserva</button><button class="del" onclick="excluirCadastroCliente('${c.id}')">🗑️ Excluir</button></div></td>
+            </tr>`; }).join('');
+        }
+
+        function salvarCadastroCliente() {
+            const nome = document.getElementById('cadNome').value.trim(); if (!nome) { showToast('Informe o nome do cliente.', 'error'); return; }
+            const novo = { id: generateId(), nome, telefone: document.getElementById('cadTelefone').value.trim(), documento: document.getElementById('cadDocumento').value.trim(), endereco: document.getElementById('cadEndereco').value.trim(), reserva: document.getElementById('cadReserva').value, dataReserva: document.getElementById('cadDataReserva').value, observacoes: document.getElementById('cadObservacoes').value.trim(), criadoEm: new Date().toISOString() };
+            const existente = cadastroClientes.find(c => chaveCliente(c) === chaveCliente(novo));
+            if (existente) Object.assign(existente, novo, { id: existente.id, criadoEm: existente.criadoEm || novo.criadoEm }); else cadastroClientes.push(novo);
+            salvarCadastros(); renderCadastroClientes();
+            ['cadNome','cadTelefone','cadDocumento','cadEndereco','cadDataReserva','cadObservacoes'].forEach(id => document.getElementById(id).value = ''); document.getElementById('cadReserva').value = 'Não';
+            showToast(existente ? '✅ Cadastro do cliente atualizado!' : '✅ Cliente cadastrado!', 'success');
+        }
+
+        function alternarReservaCliente(id) {
+            const c = cadastroClientes.find(item => item.id === id); if (!c) return;
+            c.reserva = c.reserva === 'Sim' ? 'Não' : 'Sim'; c.dataReserva = c.reserva === 'Sim' ? (c.dataReserva || getTodayString()) : '';
+            salvarCadastros(); renderCadastroClientes();
+        }
+
+        function excluirCadastroCliente(id) {
+            if (!confirm('Excluir este cliente do cadastro? O histórico de locações será preservado.')) return;
+            cadastroClientes = cadastroClientes.filter(c => c.id !== id); salvarCadastros(); renderCadastroClientes();
+        }
+
         // ─── HISTÓRICO ───
         function renderHistorico() {
             const search = document.getElementById('historicoSearch').value.toLowerCase();
@@ -761,22 +929,25 @@
             const tbody = document.getElementById('historicoBody');
             let filtered = historico;
             if (filterStatus) filtered = filtered.filter(h => h.status === filterStatus);
-            if (search) filtered = filtered.filter(h => h.cliente.toLowerCase().includes(search) || h.endereco.toLowerCase().includes(search) || h.numero.includes(search));
+            if (search) filtered = filtered.filter(h => (h.cliente || '').toLowerCase().includes(search) || (h.endereco || '').toLowerCase().includes(search) || (h.telefone || '').toLowerCase().includes(search) || (h.documento || '').toLowerCase().includes(search) || h.numero.includes(search));
             if (!filtered.length) {
-                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-light);">Nenhum registro no histórico.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="23" style="text-align:center;padding:2rem;color:var(--text-light);">Nenhum registro no histórico.</td></tr>`;
                 return;
             }
             tbody.innerHTML = filtered.map(h => `
                 <tr>
                     <td><strong>${h.numero}</strong></td>
                     <td>${h.cliente || '-'}</td>
+                    <td>${h.telefone || '-'}</td><td>${h.documento || '-'}</td><td>${h.clienteNovo || 'Não'}</td>
                     <td>${h.endereco || '-'}</td>
                     <td><span class="status-badge ${getStatusClass(h.status)}">${h.status}</span></td>
-                    <td>${formatDateBR(h.dataRetirada)}</td>
-                    <td>${formatDateBR(h.dataDevolucao)}</td>
+                    <td>${formatDateBR(h.dataPedido)}</td><td>${formatDateBR(h.dataRetirada)}</td><td>${h.diasLocacao ?? '-'}</td>
+                    <td>${formatDateBR(h.dataDevolucao)}</td><td>${formatDateBR(h.dataColeta)}</td>
                     <td>R$ ${(parseFloat(h.valor)||0).toFixed(2)}</td>
                     <td><span class="${h.pagamento === 'Pago' ? 'pagamento-pago' : 'pagamento-pendente'}">${h.pagamento}</span></td>
-                    <td>${formatDateTime(h.dataEntrega)}</td>
+                    <td>${h.formaPagamento || '-'}</td><td>${h.contaPagamento || '-'}</td><td>${h.destinoDescarte || '-'}</td>
+                    <td>${formatDateBR(h.dataDescarga)}</td><td>${formatDateBR(h.dataPagamentoUsina)}</td><td>R$ ${(parseFloat(h.valorUsina)||0).toFixed(2)}</td>
+                    <td>${formatDateTime(h.dataEntrega)}</td><td>${h.observacoes || '-'}</td>
                     <td><button class="delete-inline" onclick="excluirHistorico('${h.id}')">🗑️ Excluir</button></td>
                 </tr>
             `).join('');
@@ -795,16 +966,21 @@
                 showToast('⚠️ Histórico vazio. Nada para exportar.', 'error');
                 return;
             }
-            const headers = ['Número', 'Cliente', 'Endereço', 'Status', 'Data Colocação', 'Data Devolução', 'Valor (R$)', 'Pagamento', 'Data Entrega', 'Observações'];
+            const headers = ['Número', 'Cliente', 'Telefone', 'CPF/CNPJ', 'Cliente novo', 'Endereço', 'Status', 'Data do pedido', 'Data Colocação', 'Dias de locação', 'Previsão de coleta', 'Data real da coleta', 'Valor (R$)', 'Pagamento', 'Forma de pagamento', 'Conta/Favorecido', 'Destino do descarte', 'Data da descarga', 'Data pgto. usina', 'Valor usina (R$)', 'Data Entrega', 'Observações'];
             const rows = historico.map(h => [
                 h.numero,
                 h.cliente,
+                h.telefone || '', h.documento || '', h.clienteNovo || 'Não',
                 h.endereco,
                 h.status,
-                formatDateBR(h.dataRetirada),
+                formatDateBR(h.dataPedido),
+                formatDateBR(h.dataRetirada), h.diasLocacao || '',
                 formatDateBR(h.dataDevolucao),
+                formatDateBR(h.dataColeta),
                 (parseFloat(h.valor)||0).toFixed(2),
                 h.pagamento,
+                h.formaPagamento || '', h.contaPagamento || '', h.destinoDescarte || '',
+                formatDateBR(h.dataDescarga), formatDateBR(h.dataPagamentoUsina), (parseFloat(h.valorUsina)||0).toFixed(2),
                 formatDateTime(h.dataEntrega),
                 h.observacoes || ''
             ]);
@@ -820,6 +996,35 @@
             link.click();
             document.body.removeChild(link);
             showToast('✅ Histórico exportado com sucesso!', 'success');
+        }
+
+        function exportarBackup() {
+            const backup = { versao: 2, geradoEm: new Date().toISOString(), clientes: clients, historico, cadastroClientes };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `backup_chama_cacamba_${getTodayString()}.json`;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            showToast('✅ Backup completo criado!', 'success');
+        }
+
+        function importarBackup(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const backup = JSON.parse(reader.result);
+                    if (!Array.isArray(backup.clientes) || !Array.isArray(backup.historico)) throw new Error('Formato inválido');
+                    if (!confirm(`Restaurar ${backup.clientes.length} caçambas e ${backup.historico.length} registros de histórico?`)) return;
+                    clients = backup.clientes; historico = backup.historico; cadastroClientes = Array.isArray(backup.cadastroClientes) ? backup.cadastroClientes : [];
+                    sincronizarCadastrosExistentes(); salvarClientes(); salvarHistorico(); salvarCadastros(); renderizarTudo(); renderHistorico(); renderCadastroClientes();
+                    showToast('✅ Backup restaurado com sucesso!', 'success');
+                } catch (err) { showToast('❌ Arquivo de backup inválido.', 'error'); }
+                event.target.value = '';
+            };
+            reader.readAsText(file, 'utf-8');
         }
 
         // ─── Cálculo de devolução ───
@@ -914,6 +1119,7 @@
             document.querySelector(`.sidebar-nav a[data-page="${page}"]`)?.classList.add('active');
             document.getElementById('page-dashboard').style.display = 'none';
             document.getElementById('page-agenda').classList.remove('active');
+            document.getElementById('page-cadastro-clientes').classList.remove('active');
             document.getElementById('page-historico').classList.remove('active');
             document.getElementById('page-form').classList.remove('active');
             if (page === 'dashboard') {
@@ -925,6 +1131,9 @@
             } else if (page === 'historico') {
                 document.getElementById('page-historico').classList.add('active');
                 renderHistorico();
+            } else if (page === 'cadastro-clientes') {
+                document.getElementById('page-cadastro-clientes').classList.add('active');
+                sincronizarCadastrosExistentes(); renderCadastroClientes();
             } else {
                 document.getElementById('page-form').classList.add('active');
             }
@@ -949,9 +1158,14 @@
             document.getElementById('numero').value = c.numero || '';
             document.getElementById('status').value = c.status || 'Disponível';
             document.getElementById('cliente').value = c.cliente || '';
+            document.getElementById('telefone').value = c.telefone || '';
+            document.getElementById('documento').value = c.documento || '';
+            document.getElementById('clienteNovo').value = c.clienteNovo || 'Não';
             document.getElementById('endereco').value = c.endereco || '';
+            document.getElementById('dataPedido').value = c.dataPedido || '';
             document.getElementById('dataRetirada').value = c.dataRetirada || '';
             document.getElementById('dataDevolucao').value = c.dataDevolucao || '';
+            document.getElementById('dataColeta').value = c.dataColeta || '';
             if (c.dataRetirada && c.dataDevolucao) {
                 const d1 = new Date(c.dataRetirada);
                 const d2 = new Date(c.dataDevolucao);
@@ -962,6 +1176,12 @@
             }
             document.getElementById('valor').value = c.valor || '';
             document.getElementById('pagamento').value = c.pagamento || 'Pendente';
+            document.getElementById('formaPagamento').value = c.formaPagamento || 'PIX';
+            document.getElementById('contaPagamento').value = c.contaPagamento || '';
+            document.getElementById('destinoDescarte').value = c.destinoDescarte || '';
+            document.getElementById('dataDescarga').value = c.dataDescarga || '';
+            document.getElementById('dataPagamentoUsina').value = c.dataPagamentoUsina || '';
+            document.getElementById('valorUsina').value = c.valorUsina || '';
             document.getElementById('observacoes').value = c.observacoes || '';
             showPage('form');
         }
@@ -976,11 +1196,23 @@
             const numero = document.getElementById('numero').value.trim();
             const status = document.getElementById('status').value;
             const cliente = document.getElementById('cliente').value.trim();
+            const telefone = document.getElementById('telefone').value.trim();
+            const documento = document.getElementById('documento').value.trim();
+            const clienteNovo = document.getElementById('clienteNovo').value;
             const endereco = document.getElementById('endereco').value.trim();
+            const dataPedido = document.getElementById('dataPedido').value;
             const dataRetirada = document.getElementById('dataRetirada').value;
+            const diasLocacao = parseInt(document.getElementById('diasDevolucao').value, 10) || 0;
             const dataDevolucao = document.getElementById('dataDevolucao').value;
+            const dataColeta = document.getElementById('dataColeta').value;
             const valor = parseFloat(document.getElementById('valor').value) || 0;
             const pagamento = document.getElementById('pagamento').value;
+            const formaPagamento = document.getElementById('formaPagamento').value;
+            const contaPagamento = document.getElementById('contaPagamento').value.trim();
+            const destinoDescarte = document.getElementById('destinoDescarte').value;
+            const dataDescarga = document.getElementById('dataDescarga').value;
+            const dataPagamentoUsina = document.getElementById('dataPagamentoUsina').value;
+            const valorUsina = parseFloat(document.getElementById('valorUsina').value) || 0;
             const observacoes = document.getElementById('observacoes').value.trim();
             if (!numero) { showToast('Preencha o número da caçamba.', 'error'); return; }
             const idx = clients.findIndex(c => c.id === id);
@@ -988,12 +1220,25 @@
             clients[idx].numero = numero;
             clients[idx].status = status;
             clients[idx].cliente = cliente;
+            clients[idx].telefone = telefone;
+            clients[idx].documento = documento;
+            clients[idx].clienteNovo = clienteNovo;
             clients[idx].endereco = endereco;
+            clients[idx].dataPedido = dataPedido;
             clients[idx].dataRetirada = dataRetirada;
+            clients[idx].diasLocacao = diasLocacao;
             clients[idx].dataDevolucao = dataDevolucao;
+            clients[idx].dataColeta = dataColeta;
             clients[idx].valor = valor;
             clients[idx].pagamento = pagamento;
+            clients[idx].formaPagamento = formaPagamento;
+            clients[idx].contaPagamento = contaPagamento;
+            clients[idx].destinoDescarte = destinoDescarte;
+            clients[idx].dataDescarga = dataDescarga;
+            clients[idx].dataPagamentoUsina = dataPagamentoUsina;
+            clients[idx].valorUsina = valorUsina;
             clients[idx].observacoes = observacoes;
+            atualizarCadastroDaLocacao(clients[idx]);
             salvarClientes();
             showToast('Caçamba atualizada com sucesso!', 'success');
             showPage('dashboard');
@@ -1060,8 +1305,14 @@
             const data = snapshot.val();
             if (data) {
                 historico = Object.values(data);
+                sincronizarCadastrosExistentes();
                 renderHistorico();
             }
+        });
+
+        CADASTRO_CLIENTES_REF.on('value', (snapshot) => {
+            const data = snapshot.val(); cadastroClientes = data ? Object.values(data) : [];
+            renderCadastroClientes();
         });
     </script>
 </body>
