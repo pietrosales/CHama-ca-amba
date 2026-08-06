@@ -182,6 +182,8 @@
         .status-manutencao { background: #f0d4d4; color: #9f3e3e; }
         .status-cheia { background: #f4d4a0; color: #7a5a2a; }
         .status-entregue { background: #d4e0f0; color: #2a5a7a; }
+        .status-programada { background: #e7dcf4; color: #65458a; }
+        .status-concluido { background: #d4e8dc; color: #285f41; }
         .status-inativo { background: #e0d4d4; color: #7a4a4a; }
         .pagamento-pago { color: var(--success); font-weight: 600; }
         .pagamento-pendente { color: var(--danger); font-weight: 600; }
@@ -255,6 +257,10 @@
         .delete-inline:hover { opacity: 0.85; }
         .btn-export { background: #2a5a7a; color: #fff; border: none; padding: 0.6rem 1.4rem; border-radius: 40px; font-family: var(--font); font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn-export:hover { background: #1f4a6a; }
+        .field-help { display: block; margin-top: 0.35rem; color: var(--text-light); font-size: 0.65rem; line-height: 1.35; }
+        .pending-panel { margin-bottom: 1.5rem; border-color: #cbb9df; }
+        .pending-panel .panel-header { background: #fbf8ff; }
+        .required-note { margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 10px; background: #fff7e7; color: #76551d; font-size: 0.72rem; }
     </style>
 </head>
 <body>
@@ -266,7 +272,7 @@
         <div class="sidebar-brand">CHAMA<span>CAÇAMBA</span><small>Gestão de caçambas</small></div>
         <nav class="sidebar-nav">
             <a class="active" data-page="dashboard" onclick="showPage('dashboard')"><span class="icon">📊</span><span>Dashboard</span></a>
-            <a data-page="agenda" onclick="showPage('agenda')"><span class="icon">📅</span><span>Agenda Hoje</span></a>
+            <a data-page="agenda" onclick="showPage('agenda')"><span class="icon">📅</span><span>Agenda / Rotas</span></a>
             <a data-page="cadastro-clientes" onclick="showPage('cadastro-clientes')"><span class="icon">👥</span><span>Clientes</span></a>
             <a data-page="historico" onclick="showPage('historico')"><span class="icon">📜</span><span>Histórico</span></a>
             <a data-page="form" onclick="showPage('form'); openNewClient();" style="display:none;"></a>
@@ -279,15 +285,31 @@
         <section id="page-dashboard">
             <div class="topbar">
                 <div class="topbar-left"><h1>📋 Dashboard</h1><p>Gerencie as caçambas 0 a 15</p></div>
-                <span style="font-size:0.75rem;color:var(--text-light);">🔒 Caçambas fixas (0 a 15) – apenas edição e limpeza</span>
+                <div class="topbar-actions">
+                    <button class="btn-primary" onclick="openNewClient()">＋ Novo pedido</button>
+                    <span style="font-size:0.75rem;color:var(--text-light);align-self:center;">Caçambas fixas de 0 a 15</span>
+                </div>
             </div>
             <div class="panel" style="padding:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;">
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Total</span><div style="font-size:1.5rem;font-weight:600;" id="totalCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Disponíveis</span><div style="font-size:1.5rem;font-weight:600;" id="disponivelCount">0</div></div>
+                <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Programadas</span><div style="font-size:1.5rem;font-weight:600;" id="programadaCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Manutenção</span><div style="font-size:1.5rem;font-weight:600;" id="manutencaoCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Cheias</span><div style="font-size:1.5rem;font-weight:600;" id="cheiaCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">Entregues</span><div style="font-size:1.5rem;font-weight:600;" id="entregueCount">0</div></div>
                 <div><span style="font-size:0.6rem;text-transform:uppercase;color:var(--text-light);">A receber</span><div style="font-size:1.5rem;font-weight:600;" id="totalReceber">R$ 0</div></div>
+            </div>
+            <div class="panel pending-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Pedidos aguardando definição da caçamba <span class="badge-count" id="pedidosPendentesCount">0</span></span>
+                    <button class="btn-primary" onclick="openNewClient()">＋ Agendar pedido</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Cliente</th><th>Endereço</th><th>Colocação</th><th>Previsão de coleta</th><th>Valor</th><th>Pagamento</th><th>Ações</th></tr></thead>
+                        <tbody id="pedidosBody"></tbody>
+                    </table>
+                </div>
             </div>
             <div class="panel">
                 <div class="panel-header">
@@ -297,6 +319,7 @@
                         <select id="filterStatus" onchange="renderTable()">
                             <option value="">Todos</option>
                             <option value="Disponível">Disponível</option>
+                            <option value="Programada">Programada</option>
                             <option value="Manutenção">Manutenção</option>
                             <option value="Cheia">Cheia</option>
                             <option value="Entregue">Entregue</option>
@@ -313,11 +336,13 @@
             </div>
         </section>
 
-        <!-- AGENDA HOJE -->
+        <!-- AGENDA POR DATA -->
         <section id="page-agenda" class="form-page">
             <div class="topbar">
-                <div class="topbar-left"><h1>📅 Agenda de Hoje</h1><p id="agendaDate">Carregando data...</p></div>
+                <div class="topbar-left"><h1>📅 Agenda e Rotas</h1><p id="agendaDate">Escolha a data dos serviços</p></div>
                 <div class="topbar-actions">
+                    <label for="agendaDateInput" style="align-self:center;font-size:0.72rem;color:var(--text-light);">Data</label>
+                    <input type="date" id="agendaDateInput" onchange="renderAgenda()" style="padding:0.55rem 0.8rem;border:1px solid var(--border);border-radius:10px;font-family:var(--font);">
                     <button class="btn-secondary" onclick="showPage('dashboard')">← Voltar</button>
                     <button class="btn-route" onclick="optimizeRouteWithAPI()">🧠 Otimizar</button>
                     <button class="btn-primary" onclick="renderAgenda()">↻ Atualizar</button>
@@ -330,14 +355,14 @@
                 <button class="btn-route-sm" onclick="testApiKey()">Testar</button>
                 <span style="font-size:0.6rem;color:var(--text-light);margin-left:auto;">Franquia gratuita: 10.000 req/mês</span>
             </div>
-            <div class="info-agenda">🔍 Considerando apenas <strong>DIA e MÊS</strong> (ignora o ano). Ex: 27/07 de qualquer ano.</div>
+            <div class="info-agenda">🔍 A agenda e a rota consideram a <strong>data completa selecionada</strong>, inclusive o ano.</div>
             <div class="agenda-grid" id="agendaGrid">
                 <div class="agenda-coluna">
-                    <h3>📤 Colocações de Hoje <span class="badge-count" id="colocacaoCount">0</span></h3>
+                    <h3>📤 <span id="colocacaoTitle">Colocações</span> <span class="badge-count" id="colocacaoCount">0</span></h3>
                     <div id="colocacaoList"></div>
                 </div>
                 <div class="agenda-coluna">
-                    <h3>📥 Devoluções de Hoje <span class="badge-count" id="devolucaoCount">0</span></h3>
+                    <h3>📥 <span id="devolucaoTitle">Retiradas</span> <span class="badge-count" id="devolucaoCount">0</span></h3>
                     <div id="devolucaoList"></div>
                 </div>
             </div>
@@ -359,6 +384,7 @@
                 <button class="btn-secondary" onclick="showPage('dashboard')">← Voltar</button>
             </div>
             <div class="panel" style="padding:1.5rem;margin-bottom:1.5rem;">
+                <input type="hidden" id="cadEditId" value="">
                 <div class="form-row">
                     <div class="form-group"><label>Nome *</label><input id="cadNome" type="text" placeholder="Nome do cliente"></div>
                     <div class="form-group"><label>Telefone / WhatsApp</label><input id="cadTelefone" type="tel" placeholder="(00) 00000-0000"></div>
@@ -368,7 +394,7 @@
                     <div class="form-group"><label>Data da reserva</label><input id="cadDataReserva" type="date"></div>
                 </div>
                 <div class="form-group full"><label>Observações do cliente</label><textarea id="cadObservacoes"></textarea></div>
-                <div class="form-actions"><button class="btn-primary" type="button" onclick="salvarCadastroCliente()">Cadastrar cliente</button></div>
+                <div class="form-actions"><button class="btn-secondary" id="cadCancelarBtn" type="button" onclick="limparFormularioCadastro()" style="display:none;">Cancelar edição</button><button class="btn-primary" id="cadSalvarBtn" type="button" onclick="salvarCadastroCliente()">Cadastrar cliente</button></div>
             </div>
             <div class="panel">
                 <div class="panel-header"><span class="panel-title">Clientes cadastrados</span><div class="panel-controls"><input id="cadastroSearch" type="text" placeholder="Buscar cliente..." oninput="renderCadastroClientes()"><select id="cadastroReservaFiltro" onchange="renderCadastroClientes()"><option value="">Todas as reservas</option><option value="Sim">Com reserva</option><option value="Não">Sem reserva</option></select></div></div>
@@ -379,7 +405,7 @@
         <!-- HISTÓRICO -->
         <section id="page-historico" class="form-page">
             <div class="topbar">
-                <div class="topbar-left"><h1>📜 Histórico de Entregas</h1><p>Registro independente de caçambas entregues</p></div>
+                <div class="topbar-left"><h1>📜 Histórico de Locações</h1><p>Serviços concluídos após retirada e descarga</p></div>
                 <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
                     <button class="btn-route" onclick="exportarBackup()">💾 Backup JSON</button>
                     <button class="btn-secondary" onclick="document.getElementById('backupInput').click()">📂 Restaurar</button>
@@ -396,13 +422,14 @@
                         <select id="historicoFilterStatus" onchange="renderHistorico()">
                             <option value="">Todos</option>
                             <option value="Entregue">Entregue</option>
+                            <option value="Concluído">Concluído</option>
                             <option value="Inativo">Inativo</option>
                         </select>
                     </div>
                 </div>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>N°</th><th>Cliente</th><th>Telefone</th><th>CPF/CNPJ</th><th>Novo?</th><th>Endereço</th><th>Status</th><th>Pedido</th><th>Colocação</th><th>Dias</th><th>Previsão</th><th>Coleta real</th><th>Valor</th><th>Pagamento</th><th>Forma</th><th>Conta/Favorecido</th><th>Destino</th><th>Descarga</th><th>Pgto. usina</th><th>Valor usina</th><th>Entrega</th><th>Observações</th><th>Ações</th></tr></thead>
+                        <thead><tr><th>N°</th><th>Cliente</th><th>Telefone</th><th>CPF/CNPJ</th><th>Novo?</th><th>Endereço</th><th>Status</th><th>Pedido</th><th>Colocação</th><th>Dias</th><th>Previsão</th><th>Coleta real</th><th>Valor</th><th>Pagamento</th><th>Forma</th><th>Conta/Favorecido</th><th>Destino</th><th>Descarga</th><th>Pgto. usina</th><th>Valor usina</th><th>Conclusão</th><th>Observações</th><th>Ações</th></tr></thead>
                         <tbody id="historicoBody"></tbody>
                     </table>
                 </div>
@@ -418,14 +445,19 @@
             <div class="panel" style="padding:2rem;max-width:820px;">
                 <form id="clientForm" onsubmit="saveClient(event)">
                     <input type="hidden" id="editId" value="">
+                    <input type="hidden" id="editType" value="cacamba">
+                    <input type="hidden" id="clienteCadastroId" value="">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;">
                         <div class="form-group">
-                            <label>Número *</label>
-                            <input type="text" id="numero" readonly required style="background:#e8e4de;cursor:not-allowed;">
+                            <label>Número da caçamba</label>
+                            <input type="number" id="numero" min="0" max="15" placeholder="Definir depois">
+                            <span class="field-help">Pode ficar em branco no agendamento. Preencha quando o motorista informar qual caçamba levou.</span>
                         </div>
                         <div class="form-group">
                             <label>Status *</label>
                             <select id="status" required>
+                                <option value="Agendado">Agendado</option>
+                                <option value="Programada">Programada</option>
                                 <option value="Disponível">Disponível</option>
                                 <option value="Manutenção">Manutenção</option>
                                 <option value="Cheia">Cheia</option>
@@ -435,7 +467,9 @@
                         </div>
                         <div class="form-group">
                             <label>Cliente</label>
-                            <input type="text" id="cliente" placeholder="Nome do cliente (opcional)">
+                            <input type="text" id="cliente" list="clientesCadastradosList" autocomplete="off" placeholder="Comece a digitar o nome" oninput="preencherClienteCadastrado()" onchange="preencherClienteCadastrado(true)">
+                            <datalist id="clientesCadastradosList"></datalist>
+                            <span class="field-help">Ao escolher um cliente cadastrado, telefone, documento e endereço serão preenchidos automaticamente.</span>
                         </div>
                         <div class="form-group">
                             <label>Telefone / WhatsApp</label>
@@ -495,7 +529,8 @@
                         </div>
                         <div class="form-group">
                             <label>Destino do descarte</label>
-                            <select id="destinoDescarte"><option value="">Selecione</option><option value="Usina">Usina</option><option value="Pátio">Pátio</option><option value="Outro local">Outro local</option></select>
+                            <input type="text" id="destinoDescarte" list="destinosDescargaList" placeholder="Nome da usina, pátio ou endereço">
+                            <datalist id="destinosDescargaList"><option value="Usina"><option value="Pátio"></datalist>
                         </div>
                         <div class="form-group">
                             <label>Data de descarga</label>
@@ -514,9 +549,11 @@
                         <label>Observações</label>
                         <textarea id="observacoes"></textarea>
                     </div>
+                    <div class="required-note">⚠️ Para finalizar a retirada e liberar a caçamba, o <strong>destino do descarte</strong> e a <strong>data de descarga</strong> precisam estar preenchidos.</div>
                     <div class="form-actions">
                         <div style="flex:1;display:flex;gap:0.6rem;flex-wrap:wrap;">
-                            <button type="button" class="btn-success" id="btnEntregarForm" onclick="entregarDaEdicao()" style="display:none;">📦 Entregar</button>
+                            <button type="button" class="btn-success" id="btnColocadaForm" onclick="confirmarColocacaoDaEdicao()" style="display:none;">📦 Confirmar colocação</button>
+                            <button type="button" class="btn-danger" id="btnRetirarForm" onclick="retirarDaEdicao()" style="display:none;">🚛 Retirar e concluir</button>
                             <button type="button" class="btn-secondary" id="btnLimparForm" onclick="limparInformacoes()" style="display:none;">🧹 Limpar</button>
                         </div>
                         <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
@@ -542,29 +579,42 @@
         const CLIENTES_REF = database.ref('clientes');
         const HISTORICO_REF = database.ref('historico');
         const CADASTRO_CLIENTES_REF = database.ref('cadastroClientes');
+        const PEDIDOS_REF = database.ref('pedidos');
 
         // ─── Estado ───
         let clients = [];
         let historico = [];
         let cadastroClientes = [];
+        let pedidos = [];
         let routeData = null;
         let loading = false;
 
         // ─── Funções auxiliares ───
-        function getTodayString() { return new Date().toISOString().split('T')[0]; }
+        function getTodayString() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
         function formatDateBR(dateStr) { if (!dateStr) return '-'; const p = dateStr.split('-'); if (p.length===3) return `${p[2]}/${p[1]}/${p[0]}`; return dateStr; }
         function formatDateTime(dateStr) { if (!dateStr) return '-'; try { const d = new Date(dateStr); return d.toLocaleString('pt-BR'); } catch(e){ return dateStr; } }
         function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,4); }
-        function isAtivo(status) { return status !== 'Entregue' && status !== 'Inativo'; }
+        function isAtivo(status) { return !['Disponível', 'Manutenção', 'Inativo'].includes(status); }
+        function temLocacao(c) { return Boolean(c && c.cliente && isAtivo(c.status)); }
+        function podeRetirar(c) { return Boolean(c && c.cliente && ['Entregue', 'Cheia'].includes(c.status)); }
         function normalizar(valor) { return String(valor || '').trim().toLowerCase().replace(/\D/g, '') || String(valor || '').trim().toLowerCase(); }
         function chaveCliente(c) { return normalizar(c.documento) || normalizar(c.telefone) || normalizar(c.cliente || c.nome); }
+        function escapeHtml(valor) { return String(valor ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch])); }
+        function mesmaData(dataA, dataB) { return Boolean(dataA && dataB && dataA === dataB); }
+        function dataSelecionadaAgenda() { return document.getElementById('agendaDateInput')?.value || getTodayString(); }
 
         function getStatusClass(status) {
             const map = {
                 'Disponível': 'status-disponivel',
                 'Manutenção': 'status-manutencao',
                 'Cheia': 'status-cheia',
+                'Agendado': 'status-programada',
+                'Programada': 'status-programada',
                 'Entregue': 'status-entregue',
+                'Concluído': 'status-concluido',
                 'Inativo': 'status-inativo'
             };
             return map[status] || '';
@@ -611,6 +661,13 @@
                 sincronizarCadastrosExistentes();
                 renderCadastroClientes();
             }).catch((err) => showToast('❌ Erro ao carregar cadastro de clientes: ' + err.message, 'error'));
+
+            PEDIDOS_REF.once('value', (snapshot) => {
+                const data = snapshot.val();
+                pedidos = data ? Object.values(data) : [];
+                renderPedidos();
+                renderAgenda();
+            }).catch((err) => showToast('❌ Erro ao carregar pedidos: ' + err.message, 'error'));
         }
 
         // ─── Salvar clientes no Firebase ───
@@ -641,16 +698,23 @@
             CADASTRO_CLIENTES_REF.set(obj).catch((err) => showToast('❌ Erro ao salvar cadastro: ' + err.message, 'error'));
         }
 
+        function salvarPedidos() {
+            const obj = {}; pedidos.forEach(p => obj[p.id] = p);
+            PEDIDOS_REF.set(obj).catch((err) => showToast('❌ Erro ao salvar pedidos: ' + err.message, 'error'));
+        }
+
         function atualizarCadastroDaLocacao(locacao) {
             if (!locacao.cliente) return;
             const chave = chaveCliente(locacao);
-            let cadastro = cadastroClientes.find(c => chaveCliente(c) === chave);
+            let cadastro = cadastroClientes.find(c => c.id === locacao.clienteCadastroId) || cadastroClientes.find(c => chaveCliente(c) === chave);
             if (!cadastro) {
-                cadastro = { id: generateId(), nome: locacao.cliente, telefone: locacao.telefone || '', documento: locacao.documento || '', endereco: locacao.endereco || '', reserva: locacao.dataPedido && !locacao.dataRetirada ? 'Sim' : 'Não', dataReserva: locacao.dataPedido || '', observacoes: '', criadoEm: new Date().toISOString() };
+                cadastro = { id: locacao.clienteCadastroId || generateId(), nome: locacao.cliente, telefone: locacao.telefone || '', documento: locacao.documento || '', endereco: locacao.endereco || '', reserva: locacao.dataPedido && !locacao.dataRetirada ? 'Sim' : 'Não', dataReserva: locacao.dataPedido || '', observacoes: '', criadoEm: new Date().toISOString() };
                 cadastroClientes.push(cadastro);
+                locacao.clienteCadastroId = cadastro.id;
             } else {
-                cadastro.nome = locacao.cliente || cadastro.nome; cadastro.telefone = locacao.telefone || cadastro.telefone;
-                cadastro.documento = locacao.documento || cadastro.documento; cadastro.endereco = locacao.endereco || cadastro.endereco;
+                locacao.clienteCadastroId = cadastro.id;
+                cadastro.nome = cadastro.nome || locacao.cliente; cadastro.telefone = cadastro.telefone || locacao.telefone;
+                cadastro.documento = cadastro.documento || locacao.documento; cadastro.endereco = cadastro.endereco || locacao.endereco;
                 if (locacao.dataPedido && !locacao.dataRetirada) { cadastro.reserva = 'Sim'; cadastro.dataReserva = locacao.dataPedido; }
             }
             salvarCadastros(); renderCadastroClientes();
@@ -658,7 +722,7 @@
 
         function sincronizarCadastrosExistentes() {
             let alterou = false;
-            [...historico, ...clients].filter(c => c.cliente).forEach(locacao => {
+            [...historico, ...clients, ...pedidos].filter(c => c.cliente).forEach(locacao => {
                 const chave = chaveCliente(locacao); if (!chave || cadastroClientes.some(c => chaveCliente(c) === chave)) return;
                 cadastroClientes.push({ id: generateId(), nome: locacao.cliente, telefone: locacao.telefone || '', documento: locacao.documento || '', endereco: locacao.endereco || '', reserva: locacao.dataPedido && !locacao.dataRetirada ? 'Sim' : 'Não', dataReserva: locacao.dataPedido && !locacao.dataRetirada ? locacao.dataPedido : '', observacoes: '', criadoEm: new Date().toISOString() }); alterou = true;
             });
@@ -693,25 +757,56 @@
         // ─── Renderizar tudo ───
         function renderizarTudo() {
             renderStats();
+            renderPedidos();
             renderTable();
             renderAgenda();
         }
 
         // ─── Dashboard ───
         function renderStats() {
-            const total = clients.filter(c => isAtivo(c.status)).length;
+            const total = clients.length;
             const disponivel = clients.filter(c => c.status === 'Disponível').length;
+            const programada = clients.filter(c => c.status === 'Programada').length + pedidos.length;
             const manutencao = clients.filter(c => c.status === 'Manutenção').length;
             const cheia = clients.filter(c => c.status === 'Cheia').length;
             const entregue = clients.filter(c => c.status === 'Entregue').length;
-            const totalReceber = clients.filter(c => c.pagamento !== 'Pago' && isAtivo(c.status)).reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
+            const totalReceber = [...clients.filter(temLocacao), ...pedidos].filter(c => c.pagamento !== 'Pago').reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
 
             document.getElementById('totalCount').textContent = total;
             document.getElementById('disponivelCount').textContent = disponivel;
+            document.getElementById('programadaCount').textContent = programada;
             document.getElementById('manutencaoCount').textContent = manutencao;
             document.getElementById('cheiaCount').textContent = cheia;
             document.getElementById('entregueCount').textContent = entregue;
             document.getElementById('totalReceber').textContent = `R$ ${totalReceber.toFixed(2)}`;
+        }
+
+        function renderPedidos() {
+            const tbody = document.getElementById('pedidosBody');
+            const count = document.getElementById('pedidosPendentesCount');
+            if (!tbody || !count) return;
+            count.textContent = pedidos.length;
+            const lista = [...pedidos].sort((a,b) => String(a.dataRetirada || '').localeCompare(String(b.dataRetirada || '')));
+            if (!lista.length) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:1.4rem;color:var(--text-light);">Nenhum pedido aguardando definição de caçamba.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = lista.map(p => `<tr>
+                <td><strong>${escapeHtml(p.cliente || '-')}</strong><br><small>${escapeHtml(p.telefone || '')}</small></td>
+                <td>${escapeHtml(p.endereco || '-')}</td><td>${formatDateBR(p.dataRetirada)}</td><td>${formatDateBR(p.dataDevolucao)}</td>
+                <td>R$ ${(parseFloat(p.valor)||0).toFixed(2)}</td><td>${escapeHtml(p.pagamento || 'Pendente')}</td>
+                <td><div class="actions-cell"><button onclick="editPedido('${p.id}')">✏️ Editar / definir caçamba</button><button class="del" onclick="excluirPedido('${p.id}')">🗑️ Excluir</button></div></td>
+            </tr>`).join('');
+        }
+
+        function excluirPedido(id) {
+            const pedido = pedidos.find(p => p.id === id); if (!pedido) return;
+            if (!confirm(`Excluir o pedido de ${pedido.cliente || 'cliente não informado'}?`)) return;
+            PEDIDOS_REF.child(id).remove().then(() => {
+                pedidos = pedidos.filter(p => p.id !== id);
+                renderizarTudo();
+                showToast('Pedido excluído.', 'success');
+            }).catch(err => showToast('❌ Erro ao excluir pedido: ' + err.message, 'error'));
         }
 
         function renderTable() {
@@ -719,14 +814,14 @@
             const filterStatus = document.getElementById('filterStatus').value;
             const tbody = document.getElementById('tableBody');
 
-            let filtered = [...clients].sort((a, b) => parseInt(a.numero) - parseInt(b.numero));
+            let filtered = [...clients].sort((a, b) => Number(a.numero) - Number(b.numero));
             if (filterStatus) filtered = filtered.filter(c => c.status === filterStatus);
             if (search) filtered = filtered.filter(c => 
                 (c.cliente || '').toLowerCase().includes(search) || 
                 (c.endereco || '').toLowerCase().includes(search) ||
                 (c.telefone || '').toLowerCase().includes(search) ||
                 (c.documento || '').toLowerCase().includes(search) ||
-                c.numero.includes(search)
+                String(c.numero || '').includes(search)
             );
 
             if (!filtered.length) {
@@ -737,8 +832,8 @@
             tbody.innerHTML = filtered.map(c => `
                 <tr>
                     <td><strong>${c.numero}</strong></td>
-                    <td>${c.cliente || '-'}</td>
-                    <td>${c.endereco || '-'}</td>
+                    <td>${escapeHtml(c.cliente || '-')}</td>
+                    <td>${escapeHtml(c.endereco || '-')}</td>
                     <td><span class="status-badge ${getStatusClass(c.status)}">${c.status}</span></td>
                     <td>${formatDateBR(c.dataRetirada)}</td>
                     <td>${formatDateBR(c.dataDevolucao)}</td>
@@ -747,68 +842,79 @@
                     <td>
                         <div class="actions-cell">
                             <button onclick="editClient('${c.id}')">✏️ Editar</button>
-                            <button class="btn-secondary" onclick="limparInformacoesById('${c.id}')" style="border:1px solid var(--border);padding:0.2rem 0.6rem;border-radius:6px;font-size:0.65rem;cursor:pointer;">🧹 Limpar</button>
-                            ${isAtivo(c.status) ? `<button class="btn-success" onclick="entregarCaçamba('${c.id}')" style="border:none;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.6rem;cursor:pointer;">📦 Entregar</button>` : ''}
+                            ${!c.cliente ? `<button class="btn-secondary" onclick="limparInformacoesById('${c.id}')" style="border:1px solid var(--border);padding:0.2rem 0.6rem;border-radius:6px;font-size:0.65rem;cursor:pointer;">🧹 Limpar</button>` : ''}
+                            ${c.status === 'Programada' && c.cliente ? `<button class="btn-success" onclick="confirmarColocacao('${c.id}')" style="border:none;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.6rem;cursor:pointer;">📦 Colocada</button>` : ''}
+                            ${podeRetirar(c) ? `<button class="btn-danger" onclick="retirarCacamba('${c.id}')" style="border:none;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.6rem;cursor:pointer;">🚛 Retirar</button>` : ''}
                         </div>
                     </td>
                 </tr>
             `).join('');
         }
 
-        // ─── AGENDA ───
-        function isToday(dateStr) {
-            if (!dateStr) return false;
-            const p = dateStr.split('-'); if (p.length!==3) return false;
-            const h = new Date(); const mes = String(h.getMonth()+1).padStart(2,'0'); const dia = String(h.getDate()).padStart(2,'0');
-            return p[1]===mes && p[2]===dia;
+        // ─── AGENDA POR DATA ───
+        function obterColocacoesAgenda(data = dataSelecionadaAgenda()) {
+            return [
+                ...clients.filter(c => mesmaData(c.dataRetirada, data) && c.cliente && c.status !== 'Disponível').map(c => ({...c, _source:'cacamba'})),
+                ...pedidos.filter(p => mesmaData(p.dataRetirada, data) && p.cliente).map(p => ({...p, _source:'pedido', numero:''}))
+            ];
+        }
+
+        function obterRetiradasAgenda(data = dataSelecionadaAgenda()) {
+            return clients.filter(c => mesmaData(c.dataDevolucao, data) && c.cliente && ['Entregue','Cheia'].includes(c.status));
         }
 
         function renderAgenda() {
-            const hoje = new Date();
-            const diaMes = `${String(hoje.getDate()).padStart(2,'0')}/${String(hoje.getMonth()+1).padStart(2,'0')}`;
-            document.getElementById('agendaDate').textContent = `📆 ${formatDateBR(getTodayString())} (hoje) — dia/mês: ${diaMes}`;
-            const colocacoes = clients.filter(c => c.dataRetirada && isToday(c.dataRetirada) && c.cliente);
-            const devolucoes = clients.filter(c => c.dataDevolucao && isToday(c.dataDevolucao) && c.cliente);
+            const data = dataSelecionadaAgenda();
+            const input = document.getElementById('agendaDateInput'); if (input && !input.value) input.value = data;
+            const sufixo = data === getTodayString() ? ' (hoje)' : '';
+            document.getElementById('agendaDate').textContent = `📆 Serviços de ${formatDateBR(data)}${sufixo}`;
+            document.getElementById('colocacaoTitle').textContent = `Colocações de ${formatDateBR(data)}`;
+            document.getElementById('devolucaoTitle').textContent = `Retiradas de ${formatDateBR(data)}`;
+            routeData = null;
+            document.getElementById('routeResult')?.classList.remove('show');
+            const colocacoes = obterColocacoesAgenda(data);
+            const devolucoes = obterRetiradasAgenda(data);
             document.getElementById('colocacaoCount').textContent = colocacoes.length;
             document.getElementById('devolucaoCount').textContent = devolucoes.length;
             const colocacaoList = document.getElementById('colocacaoList');
             const devolucaoList = document.getElementById('devolucaoList');
 
             colocacaoList.innerHTML = colocacoes.length ? colocacoes.map(c => {
-                const isEntregue = c.status === 'Entregue' || c.status === 'Inativo';
+                const isEntregue = c.status === 'Entregue';
                 const extraClass = isEntregue ? 'tipo-entregue' : 'tipo-colocacao';
-                const entregueLabel = isEntregue ? ' ✅ Entregue' : '';
+                const entregueLabel = isEntregue ? ' ✅ Entregue ao cliente' : '';
+                const numeroLabel = c.numero !== '' ? `N° ${escapeHtml(c.numero)}` : 'Caçamba a definir';
+                const enderecoCodificado = encodeURIComponent(c.endereco || '');
                 return `<div class="agenda-item ${extraClass}">
                     <div class="info">
-                        <div class="cliente">${c.cliente} <span style="font-weight:400;color:var(--text-light);font-size:0.7rem;">N° ${c.numero}</span>${entregueLabel}</div>
-                        <div class="endereco">${c.endereco || 'Endereço não informado'}</div>
-                        <div class="detalhe"><span>Status: ${c.status}</span><span>Valor: R$ ${(parseFloat(c.valor)||0).toFixed(2)}</span><span>Pagamento: ${c.pagamento}</span></div>
+                        <div class="cliente">${escapeHtml(c.cliente)} <span style="font-weight:400;color:var(--text-light);font-size:0.7rem;">${numeroLabel}</span>${entregueLabel}</div>
+                        <div class="endereco">${escapeHtml(c.endereco || 'Endereço não informado')}</div>
+                        <div class="detalhe"><span>Status: ${escapeHtml(c.status || 'Agendado')}</span><span>Valor: R$ ${(parseFloat(c.valor)||0).toFixed(2)}</span><span>Pagamento: ${escapeHtml(c.pagamento || 'Pendente')}</span></div>
                     </div>
                     <div class="actions">
-                        ${c.endereco ? `<button class="btn-route-sm" onclick="traceRoute('${c.endereco.replace(/'/g, "\\'")}')">🗺️ Rota</button>` : ''}
-                        ${!isEntregue ? `<button class="btn-success" onclick="entregarCaçamba('${c.id}')" style="border:none;padding:0.2rem 0.7rem;border-radius:20px;font-size:0.6rem;font-weight:600;cursor:pointer;">📦 Entregar</button>` : ''}
-                        <button onclick="editClient('${c.id}')">✏️</button>
+                        ${c.endereco ? `<button class="btn-route-sm" onclick="traceRoute(decodeURIComponent('${enderecoCodificado}'))">🗺️ Rota</button>` : ''}
+                        ${c._source === 'pedido' ? `<button onclick="editPedido('${c.id}')">✏️ Definir caçamba</button>` : ''}
+                        ${c._source === 'cacamba' && c.status === 'Programada' ? `<button class="btn-success" onclick="confirmarColocacao('${c.id}')">📦 Colocada</button>` : ''}
+                        ${c._source === 'cacamba' ? `<button onclick="editClient('${c.id}')">✏️</button>` : ''}
                     </div>
                 </div>`;
-            }).join('') : `<div class="agenda-vazia"><span class="emoji">✅</span>Nenhuma colocação agendada para hoje.</div>`;
+            }).join('') : `<div class="agenda-vazia"><span class="emoji">✅</span>Nenhuma colocação agendada para ${formatDateBR(data)}.</div>`;
 
             devolucaoList.innerHTML = devolucoes.length ? devolucoes.map(c => {
-                const isEntregue = c.status === 'Entregue' || c.status === 'Inativo';
-                const extraClass = isEntregue ? 'tipo-entregue' : 'tipo-devolucao';
-                const entregueLabel = isEntregue ? ' ✅ Entregue' : '';
-                return `<div class="agenda-item ${extraClass}">
+                const enderecoCodificado = encodeURIComponent(c.endereco || '');
+                return `<div class="agenda-item tipo-devolucao">
                     <div class="info">
-                        <div class="cliente">${c.cliente} <span style="font-weight:400;color:var(--text-light);font-size:0.7rem;">N° ${c.numero}</span>${entregueLabel}</div>
-                        <div class="endereco">${c.endereco || 'Endereço não informado'}</div>
-                        <div class="detalhe"><span>Status: ${c.status}</span><span>Valor: R$ ${(parseFloat(c.valor)||0).toFixed(2)}</span><span>Pagamento: ${c.pagamento}</span></div>
+                        <div class="cliente">${escapeHtml(c.cliente)} <span style="font-weight:400;color:var(--text-light);font-size:0.7rem;">N° ${escapeHtml(c.numero)}</span></div>
+                        <div class="endereco">${escapeHtml(c.endereco || 'Endereço não informado')}</div>
+                        <div class="detalhe"><span>Status: ${escapeHtml(c.status)}</span><span>Valor: R$ ${(parseFloat(c.valor)||0).toFixed(2)}</span><span>Pagamento: ${escapeHtml(c.pagamento)}</span></div>
                     </div>
                     <div class="actions">
-                        ${c.endereco ? `<button class="btn-route-sm" onclick="traceRoute('${c.endereco.replace(/'/g, "\\'")}')">🗺️ Rota</button>` : ''}
-                        ${!isEntregue ? `<button class="btn-success" onclick="entregarCaçamba('${c.id}')" style="border:none;padding:0.2rem 0.7rem;border-radius:20px;font-size:0.6rem;font-weight:600;cursor:pointer;">📦 Entregar</button>` : ''}
+                        ${c.endereco ? `<button class="btn-route-sm" onclick="traceRoute(decodeURIComponent('${enderecoCodificado}'))">🗺️ Rota</button>` : ''}
+                        <button class="btn-danger" onclick="retirarCacamba('${c.id}')">🚛 Retirar</button>
                         <button onclick="editClient('${c.id}')">✏️</button>
                     </div>
                 </div>`;
-            }).join('') : `<div class="agenda-vazia"><span class="emoji">✅</span>Nenhuma devolução agendada para hoje.</div>`;
+            }).join('') : `<div class="agenda-vazia"><span class="emoji">✅</span>Nenhuma retirada prevista para ${formatDateBR(data)}.</div>`;
         }
 
         function traceRoute(address) {
@@ -816,33 +922,54 @@
             window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`, '_blank');
         }
 
-        // ─── ENTREGAR ───
-        function entregarCaçamba(id) {
-            const idx = clients.findIndex(c => c.id === id);
-            if (idx === -1) return;
+        // ─── CICLO DA LOCAÇÃO ───
+        function criarCacambaVazia(base) {
+            return {
+                id: base.id, numero: String(base.numero), status: 'Disponível', cliente: '', clienteCadastroId: '',
+                telefone: '', documento: '', clienteNovo: 'Não', dataPedido: '', endereco: '', dataRetirada: '',
+                diasLocacao: 30, dataDevolucao: '', valor: 0, pagamento: 'Pendente', formaPagamento: 'PIX',
+                contaPagamento: '', dataColeta: '', destinoDescarte: '', dataDescarga: '', dataPagamentoUsina: '',
+                valorUsina: 0, observacoes: '', dataEntrega: '', finalizadoEm: ''
+            };
+        }
+
+        function confirmarColocacao(id) {
+            const idx = clients.findIndex(c => c.id === id); if (idx === -1) return;
             const c = clients[idx];
-            if (c.status === 'Entregue' || c.status === 'Inativo') { showToast('Esta caçamba já foi entregue ou está inativa.', 'error'); return; }
-            if (!confirm(`Confirmar entrega da caçamba ${c.numero} para ${c.cliente}?`)) return;
+            if (!c.cliente) { showToast('Preencha o cliente antes de confirmar a colocação.', 'error'); return; }
+            if (!confirm(`Confirmar que a caçamba ${c.numero} foi colocada para ${c.cliente}? Os dados continuarão ativos até a retirada.`)) return;
+            const atualizacao = { status: 'Entregue', colocadaEm: new Date().toISOString() };
+            CLIENTES_REF.child(id).update(atualizacao).then(() => {
+                Object.assign(clients[idx], atualizacao);
+                renderizarTudo();
+                showToast(`✅ Caçamba ${c.numero} registrada no cliente.`, 'success');
+            }).catch(err => showToast('❌ Erro ao confirmar colocação: ' + err.message, 'error'));
+        }
+
+        function retirarCacamba(id, dadosFormulario = null) {
+            const idx = clients.findIndex(c => c.id === id); if (idx === -1) return;
+            const c = dadosFormulario ? { ...clients[idx], ...dadosFormulario, id: clients[idx].id, numero: clients[idx].numero } : clients[idx];
+            if (!podeRetirar(c)) { showToast('A retirada só pode ser concluída depois que a caçamba estiver entregue ao cliente.', 'error'); return; }
+            if (!String(c.destinoDescarte || '').trim() || !c.dataDescarga) {
+                showToast('⚠️ Preencha o local e a data da descarga antes de retirar.', 'error');
+                editClient(id);
+                return;
+            }
+            if (!confirm(`Concluir a retirada da caçamba ${c.numero}, enviar a locação ao histórico e liberar a caçamba?`)) return;
+            const historicoId = generateId();
             const now = new Date().toISOString();
-            const copia = { ...c, dataEntrega: now, id: generateId() };
-            historico.push(copia);
-            salvarHistorico();
-            clients[idx].status = 'Entregue';
-            clients[idx].cliente = '';
-            clients[idx].telefone = ''; clients[idx].documento = ''; clients[idx].clienteNovo = 'Não'; clients[idx].dataPedido = '';
-            clients[idx].endereco = '';
-            clients[idx].dataRetirada = '';
-            clients[idx].dataDevolucao = '';
-            clients[idx].valor = 0;
-            clients[idx].pagamento = 'Pendente';
-            clients[idx].formaPagamento = 'PIX'; clients[idx].contaPagamento = ''; clients[idx].dataColeta = '';
-            clients[idx].destinoDescarte = ''; clients[idx].dataDescarga = ''; clients[idx].dataPagamentoUsina = ''; clients[idx].valorUsina = 0;
-            clients[idx].observacoes = '';
-            clients[idx].dataEntrega = now;
-            salvarClientes();
-            renderizarTudo();
-            renderHistorico();
-            showToast(`✅ Caçamba ${c.numero} entregue!`, 'success');
+            const registro = { ...c, id: historicoId, cacambaId: id, status: 'Concluído', dataColeta: c.dataColeta || getTodayString(), dataEntrega: now, finalizadoEm: now };
+            const livre = criarCacambaVazia(clients[idx]);
+            const updates = {};
+            updates[`historico/${historicoId}`] = registro;
+            updates[`clientes/${id}`] = livre;
+            database.ref().update(updates).then(() => {
+                historico.push(registro);
+                clients[idx] = livre;
+                renderizarTudo(); renderHistorico();
+                showPage('dashboard');
+                showToast(`✅ Retirada concluída. Caçamba ${c.numero} disponível novamente.`, 'success');
+            }).catch(err => showToast('❌ Não foi possível concluir a retirada: ' + err.message, 'error'));
         }
 
         // ─── LIMPAR ───
@@ -853,21 +980,11 @@
         }
 
         function limparInformacoesById(id) {
-            if (!confirm('Limpar todas as informações do cliente? A caçamba ficará disponível.')) return;
             const idx = clients.findIndex(c => c.id === id);
             if (idx === -1) return;
-            clients[idx].status = 'Disponível';
-            clients[idx].cliente = '';
-            clients[idx].telefone = ''; clients[idx].documento = ''; clients[idx].clienteNovo = 'Não'; clients[idx].dataPedido = '';
-            clients[idx].endereco = '';
-            clients[idx].dataRetirada = '';
-            clients[idx].dataDevolucao = '';
-            clients[idx].valor = 0;
-            clients[idx].pagamento = 'Pendente';
-            clients[idx].formaPagamento = 'PIX'; clients[idx].contaPagamento = ''; clients[idx].dataColeta = '';
-            clients[idx].destinoDescarte = ''; clients[idx].dataDescarga = ''; clients[idx].dataPagamentoUsina = ''; clients[idx].valorUsina = 0;
-            clients[idx].observacoes = '';
-            clients[idx].dataEntrega = '';
+            if (clients[idx].cliente) { showToast('Uma locação ativa só pode liberar a caçamba pela ação Retirar, após informar a descarga.', 'error'); return; }
+            if (!confirm('Limpar o estado desta caçamba e deixá-la disponível?')) return;
+            clients[idx] = criarCacambaVazia(clients[idx]);
             salvarClientes();
             renderizarTudo();
             if (document.getElementById('page-form').classList.contains('active')) {
@@ -880,7 +997,7 @@
         // ─── CADASTRO PERMANENTE DE CLIENTES ───
         function dadosPedidosCliente(cadastro) {
             const chave = chaveCliente(cadastro);
-            const registros = [...historico, ...clients.filter(c => c.cliente)].filter(item => chaveCliente(item) === chave);
+            const registros = [...historico, ...clients.filter(c => c.cliente), ...pedidos].filter(item => item.clienteCadastroId === cadastro.id || chaveCliente(item) === chave);
             const datas = registros.map(item => item.dataPedido || item.dataRetirada || item.dataEntrega).filter(Boolean).sort();
             return { total: registros.length, ultimo: datas.length ? datas[datas.length - 1] : '' };
         }
@@ -897,18 +1014,63 @@
                 <td><strong>${c.nome || '-'}</strong></td><td>${c.telefone || '-'}</td><td>${c.documento || '-'}</td>
                 <td><span class="status-badge ${c.reserva === 'Sim' ? 'status-cheia' : 'status-disponivel'}">${c.reserva || 'Não'}</span></td>
                 <td>${formatDateBR(c.dataReserva)}</td><td><strong>${pedidos.total}</strong></td><td>${formatDateBR(pedidos.ultimo)}</td><td>${c.endereco || '-'}</td>
-                <td><div class="actions-cell"><button onclick="alternarReservaCliente('${c.id}')">📅 Reserva</button><button class="del" onclick="excluirCadastroCliente('${c.id}')">🗑️ Excluir</button></div></td>
+                <td><div class="actions-cell"><button onclick="editarCadastroCliente('${c.id}')">✏️ Editar</button><button onclick="alternarReservaCliente('${c.id}')">📅 Reserva</button><button class="del" onclick="excluirCadastroCliente('${c.id}')">🗑️ Excluir</button></div></td>
             </tr>`; }).join('');
+            renderClientesDatalist();
         }
 
         function salvarCadastroCliente() {
             const nome = document.getElementById('cadNome').value.trim(); if (!nome) { showToast('Informe o nome do cliente.', 'error'); return; }
-            const novo = { id: generateId(), nome, telefone: document.getElementById('cadTelefone').value.trim(), documento: document.getElementById('cadDocumento').value.trim(), endereco: document.getElementById('cadEndereco').value.trim(), reserva: document.getElementById('cadReserva').value, dataReserva: document.getElementById('cadDataReserva').value, observacoes: document.getElementById('cadObservacoes').value.trim(), criadoEm: new Date().toISOString() };
-            const existente = cadastroClientes.find(c => chaveCliente(c) === chaveCliente(novo));
+            const editId = document.getElementById('cadEditId').value;
+            const novo = { id: editId || generateId(), nome, telefone: document.getElementById('cadTelefone').value.trim(), documento: document.getElementById('cadDocumento').value.trim(), endereco: document.getElementById('cadEndereco').value.trim(), reserva: document.getElementById('cadReserva').value, dataReserva: document.getElementById('cadDataReserva').value, observacoes: document.getElementById('cadObservacoes').value.trim(), criadoEm: new Date().toISOString() };
+            const existente = cadastroClientes.find(c => c.id === editId) || cadastroClientes.find(c => chaveCliente(c) === chaveCliente(novo));
             if (existente) Object.assign(existente, novo, { id: existente.id, criadoEm: existente.criadoEm || novo.criadoEm }); else cadastroClientes.push(novo);
             salvarCadastros(); renderCadastroClientes();
-            ['cadNome','cadTelefone','cadDocumento','cadEndereco','cadDataReserva','cadObservacoes'].forEach(id => document.getElementById(id).value = ''); document.getElementById('cadReserva').value = 'Não';
+            limparFormularioCadastro();
             showToast(existente ? '✅ Cadastro do cliente atualizado!' : '✅ Cliente cadastrado!', 'success');
+        }
+
+        function editarCadastroCliente(id) {
+            const c = cadastroClientes.find(item => item.id === id); if (!c) return;
+            document.getElementById('cadEditId').value = c.id;
+            document.getElementById('cadNome').value = c.nome || '';
+            document.getElementById('cadTelefone').value = c.telefone || '';
+            document.getElementById('cadDocumento').value = c.documento || '';
+            document.getElementById('cadEndereco').value = c.endereco || '';
+            document.getElementById('cadReserva').value = c.reserva || 'Não';
+            document.getElementById('cadDataReserva').value = c.dataReserva || '';
+            document.getElementById('cadObservacoes').value = c.observacoes || '';
+            document.getElementById('cadSalvarBtn').textContent = 'Atualizar cliente';
+            document.getElementById('cadCancelarBtn').style.display = 'inline-block';
+            document.getElementById('cadNome').focus();
+        }
+
+        function limparFormularioCadastro() {
+            document.getElementById('cadEditId').value = '';
+            ['cadNome','cadTelefone','cadDocumento','cadEndereco','cadDataReserva','cadObservacoes'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('cadReserva').value = 'Não';
+            document.getElementById('cadSalvarBtn').textContent = 'Cadastrar cliente';
+            document.getElementById('cadCancelarBtn').style.display = 'none';
+        }
+
+        function renderClientesDatalist() {
+            const lista = document.getElementById('clientesCadastradosList'); if (!lista) return;
+            lista.innerHTML = [...cadastroClientes].sort((a,b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR')).map(c => `<option value="${escapeHtml(c.nome || '')}">${escapeHtml(c.telefone || c.documento || '')}</option>`).join('');
+        }
+
+        function preencherClienteCadastrado() {
+            const nome = document.getElementById('cliente').value.trim();
+            const idAtual = document.getElementById('clienteCadastroId').value;
+            const cadastro = cadastroClientes.find(c => String(c.nome || '').trim().toLowerCase() === nome.toLowerCase());
+            if (!cadastro) {
+                if (idAtual) document.getElementById('clienteCadastroId').value = '';
+                return;
+            }
+            document.getElementById('clienteCadastroId').value = cadastro.id;
+            document.getElementById('telefone').value = cadastro.telefone || '';
+            document.getElementById('documento').value = cadastro.documento || '';
+            document.getElementById('endereco').value = cadastro.endereco || '';
+            document.getElementById('clienteNovo').value = dadosPedidosCliente(cadastro).total > 0 ? 'Não' : 'Sim';
         }
 
         function alternarReservaCliente(id) {
@@ -929,7 +1091,7 @@
             const tbody = document.getElementById('historicoBody');
             let filtered = historico;
             if (filterStatus) filtered = filtered.filter(h => h.status === filterStatus);
-            if (search) filtered = filtered.filter(h => (h.cliente || '').toLowerCase().includes(search) || (h.endereco || '').toLowerCase().includes(search) || (h.telefone || '').toLowerCase().includes(search) || (h.documento || '').toLowerCase().includes(search) || h.numero.includes(search));
+            if (search) filtered = filtered.filter(h => (h.cliente || '').toLowerCase().includes(search) || (h.endereco || '').toLowerCase().includes(search) || (h.telefone || '').toLowerCase().includes(search) || (h.documento || '').toLowerCase().includes(search) || String(h.numero || '').includes(search));
             if (!filtered.length) {
                 tbody.innerHTML = `<tr><td colspan="23" style="text-align:center;padding:2rem;color:var(--text-light);">Nenhum registro no histórico.</td></tr>`;
                 return;
@@ -966,7 +1128,7 @@
                 showToast('⚠️ Histórico vazio. Nada para exportar.', 'error');
                 return;
             }
-            const headers = ['Número', 'Cliente', 'Telefone', 'CPF/CNPJ', 'Cliente novo', 'Endereço', 'Status', 'Data do pedido', 'Data Colocação', 'Dias de locação', 'Previsão de coleta', 'Data real da coleta', 'Valor (R$)', 'Pagamento', 'Forma de pagamento', 'Conta/Favorecido', 'Destino do descarte', 'Data da descarga', 'Data pgto. usina', 'Valor usina (R$)', 'Data Entrega', 'Observações'];
+            const headers = ['Número', 'Cliente', 'Telefone', 'CPF/CNPJ', 'Cliente novo', 'Endereço', 'Status', 'Data do pedido', 'Data Colocação', 'Dias de locação', 'Previsão de coleta', 'Data real da coleta', 'Valor (R$)', 'Pagamento', 'Forma de pagamento', 'Conta/Favorecido', 'Destino do descarte', 'Data da descarga', 'Data pgto. usina', 'Valor usina (R$)', 'Data de conclusão', 'Observações'];
             const rows = historico.map(h => [
                 h.numero,
                 h.cliente,
@@ -999,7 +1161,7 @@
         }
 
         function exportarBackup() {
-            const backup = { versao: 2, geradoEm: new Date().toISOString(), clientes: clients, historico, cadastroClientes };
+            const backup = { versao: 3, geradoEm: new Date().toISOString(), clientes: clients, historico, cadastroClientes, pedidos };
             const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
@@ -1017,9 +1179,10 @@
                 try {
                     const backup = JSON.parse(reader.result);
                     if (!Array.isArray(backup.clientes) || !Array.isArray(backup.historico)) throw new Error('Formato inválido');
-                    if (!confirm(`Restaurar ${backup.clientes.length} caçambas e ${backup.historico.length} registros de histórico?`)) return;
-                    clients = backup.clientes; historico = backup.historico; cadastroClientes = Array.isArray(backup.cadastroClientes) ? backup.cadastroClientes : [];
-                    sincronizarCadastrosExistentes(); salvarClientes(); salvarHistorico(); salvarCadastros(); renderizarTudo(); renderHistorico(); renderCadastroClientes();
+                    const pedidosBackup = Array.isArray(backup.pedidos) ? backup.pedidos : [];
+                    if (!confirm(`Restaurar ${backup.clientes.length} caçambas, ${pedidosBackup.length} pedidos e ${backup.historico.length} registros de histórico?`)) return;
+                    clients = backup.clientes; historico = backup.historico; cadastroClientes = Array.isArray(backup.cadastroClientes) ? backup.cadastroClientes : []; pedidos = pedidosBackup;
+                    sincronizarCadastrosExistentes(); salvarClientes(); salvarHistorico(); salvarCadastros(); salvarPedidos(); renderizarTudo(); renderHistorico(); renderCadastroClientes();
                     showToast('✅ Backup restaurado com sucesso!', 'success');
                 } catch (err) { showToast('❌ Arquivo de backup inválido.', 'error'); }
                 event.target.value = '';
@@ -1032,7 +1195,8 @@
             const dataRet = document.getElementById('dataRetirada').value;
             const dias = parseInt(document.getElementById('diasDevolucao').value) || 0;
             if (dataRet && dias > 0) {
-                const d = new Date(dataRet);
+                const [anoBase, mesBase, diaBase] = dataRet.split('-').map(Number);
+                const d = new Date(anoBase, mesBase - 1, diaBase);
                 d.setDate(d.getDate() + dias);
                 const ano = d.getFullYear();
                 const mes = String(d.getMonth()+1).padStart(2,'0');
@@ -1072,11 +1236,12 @@
             const key = loadApiKey();
             if (!key) { showToast('⚠️ Configure sua Google API Key primeiro.', 'error'); return; }
             if (typeof google === 'undefined' || !google.maps) { showToast('⏳ Carregando biblioteca...', 'error'); return; }
-            const colocacoes = clients.filter(c => c.dataRetirada && isToday(c.dataRetirada) && c.cliente && c.endereco && c.endereco.trim() !== '' && isAtivo(c.status));
-            const devolucoes = clients.filter(c => c.dataDevolucao && isToday(c.dataDevolucao) && c.cliente && c.endereco && c.endereco.trim() !== '' && isAtivo(c.status));
+            const data = dataSelecionadaAgenda();
+            const colocacoes = obterColocacoesAgenda(data).filter(c => c.endereco && c.endereco.trim() !== '');
+            const devolucoes = obterRetiradasAgenda(data).filter(c => c.endereco && c.endereco.trim() !== '');
             const uniqueMap = new Map();
             colocacoes.forEach(c => { const a = c.endereco.trim(); if (!uniqueMap.has(a)) uniqueMap.set(a, { cliente: c.cliente, endereco: a, tipo: 'Colocação', id: c.id }); });
-            devolucoes.forEach(c => { const a = c.endereco.trim(); if (!uniqueMap.has(a)) uniqueMap.set(a, { cliente: c.cliente, endereco: a, tipo: 'Devolução', id: c.id }); });
+            devolucoes.forEach(c => { const a = c.endereco.trim(); if (!uniqueMap.has(a)) uniqueMap.set(a, { cliente: c.cliente, endereco: a, tipo: 'Retirada', id: c.id }); });
             const stops = Array.from(uniqueMap.values());
             if (stops.length < 2) { showToast('⚠️ Precisa de pelo menos 2 endereços para otimizar.', 'error'); return; }
             if (stops.length > 10) { showToast('⚠️ O Google Maps suporta até 10 paradas. Usando as 10 primeiras.', 'error'); stops.splice(10); }
@@ -1124,7 +1289,7 @@
             document.getElementById('page-form').classList.remove('active');
             if (page === 'dashboard') {
                 document.getElementById('page-dashboard').style.display = 'block';
-                renderStats(); renderTable();
+                renderStats(); renderPedidos(); renderTable();
             } else if (page === 'agenda') {
                 document.getElementById('page-agenda').classList.add('active');
                 renderAgenda(); updateApiStatus(); document.getElementById('apiKeyInput').value = loadApiKey();
@@ -1142,21 +1307,31 @@
 
         // ─── FORMULÁRIO ───
         function openNewClient() {
-            showToast('🚫 Não é possível adicionar novas caçambas. Apenas edite as existentes (0 a 15).', 'error');
-            showPage('dashboard');
+            document.getElementById('clientForm').reset();
+            document.getElementById('editId').value = '';
+            document.getElementById('editType').value = 'pedido';
+            document.getElementById('clienteCadastroId').value = '';
+            document.getElementById('formTitle').textContent = '📝 Novo pedido';
+            document.getElementById('formSub').textContent = 'Agende a colocação agora e informe a caçamba depois';
+            document.getElementById('formSubmitBtn').textContent = 'Salvar pedido';
+            document.getElementById('numero').value = '';
+            document.getElementById('status').value = 'Agendado';
+            document.getElementById('status').disabled = true;
+            document.getElementById('dataPedido').value = getTodayString();
+            document.getElementById('diasDevolucao').value = 30;
+            document.getElementById('pagamento').value = 'Pendente';
+            document.getElementById('formaPagamento').value = 'PIX';
+            document.getElementById('btnColocadaForm').style.display = 'none';
+            document.getElementById('btnRetirarForm').style.display = 'none';
+            document.getElementById('btnLimparForm').style.display = 'none';
+            renderClientesDatalist();
+            showPage('form');
         }
 
-        function editClient(id) {
-            const c = clients.find(item => item.id === id);
-            if (!c) return;
-            document.getElementById('editId').value = id;
-            document.getElementById('formTitle').textContent = '✏️ Editar caçamba';
-            document.getElementById('formSub').textContent = 'Atualize os dados do cliente para esta caçamba';
-            document.getElementById('formSubmitBtn').textContent = 'Atualizar';
-            document.getElementById('btnEntregarForm').style.display = isAtivo(c.status) ? 'inline-block' : 'none';
-            document.getElementById('btnLimparForm').style.display = 'inline-block';
-            document.getElementById('numero').value = c.numero || '';
-            document.getElementById('status').value = c.status || 'Disponível';
+        function preencherFormularioLocacao(c) {
+            document.getElementById('numero').value = c.numero ?? '';
+            document.getElementById('status').value = c.status || 'Agendado';
+            document.getElementById('clienteCadastroId').value = c.clienteCadastroId || '';
             document.getElementById('cliente').value = c.cliente || '';
             document.getElementById('telefone').value = c.telefone || '';
             document.getElementById('documento').value = c.documento || '';
@@ -1164,16 +1339,9 @@
             document.getElementById('endereco').value = c.endereco || '';
             document.getElementById('dataPedido').value = c.dataPedido || '';
             document.getElementById('dataRetirada').value = c.dataRetirada || '';
+            document.getElementById('diasDevolucao').value = c.diasLocacao || 30;
             document.getElementById('dataDevolucao').value = c.dataDevolucao || '';
             document.getElementById('dataColeta').value = c.dataColeta || '';
-            if (c.dataRetirada && c.dataDevolucao) {
-                const d1 = new Date(c.dataRetirada);
-                const d2 = new Date(c.dataDevolucao);
-                const diff = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
-                document.getElementById('diasDevolucao').value = diff || 30;
-            } else {
-                document.getElementById('diasDevolucao').value = 30;
-            }
             document.getElementById('valor').value = c.valor || '';
             document.getElementById('pagamento').value = c.pagamento || 'Pendente';
             document.getElementById('formaPagamento').value = c.formaPagamento || 'PIX';
@@ -1183,71 +1351,144 @@
             document.getElementById('dataPagamentoUsina').value = c.dataPagamentoUsina || '';
             document.getElementById('valorUsina').value = c.valorUsina || '';
             document.getElementById('observacoes').value = c.observacoes || '';
-            showPage('form');
+        }
+
+        function editPedido(id) {
+            const p = pedidos.find(item => item.id === id); if (!p) return;
+            document.getElementById('editId').value = id;
+            document.getElementById('editType').value = 'pedido';
+            document.getElementById('formTitle').textContent = '✏️ Editar pedido';
+            document.getElementById('formSub').textContent = 'Informe o número quando o motorista devolver a ficha';
+            document.getElementById('formSubmitBtn').textContent = 'Salvar / atribuir caçamba';
+            document.getElementById('status').disabled = true;
+            preencherFormularioLocacao({...p, numero:'', status:'Agendado'});
+            document.getElementById('btnColocadaForm').style.display = 'none';
+            document.getElementById('btnRetirarForm').style.display = 'none';
+            document.getElementById('btnLimparForm').style.display = 'none';
+            renderClientesDatalist(); showPage('form');
+        }
+
+        function editClient(id) {
+            const c = clients.find(item => item.id === id); if (!c) return;
+            document.getElementById('editId').value = id;
+            document.getElementById('editType').value = 'cacamba';
+            document.getElementById('formTitle').textContent = '✏️ Editar caçamba';
+            document.getElementById('formSub').textContent = c.cliente ? 'Atualize os dados desta locação' : 'Caçamba disponível para uma nova programação';
+            document.getElementById('formSubmitBtn').textContent = 'Atualizar';
+            document.getElementById('status').disabled = false;
+            preencherFormularioLocacao(c);
+            document.getElementById('btnColocadaForm').style.display = c.status === 'Programada' ? 'inline-block' : 'none';
+            document.getElementById('btnRetirarForm').style.display = podeRetirar(c) ? 'inline-block' : 'none';
+            document.getElementById('btnLimparForm').style.display = c.cliente ? 'none' : 'inline-block';
+            renderClientesDatalist(); showPage('form');
+        }
+
+        function lerDadosFormulario() {
+            return {
+                numero: document.getElementById('numero').value.trim(), status: document.getElementById('status').value,
+                clienteCadastroId: document.getElementById('clienteCadastroId').value, cliente: document.getElementById('cliente').value.trim(),
+                telefone: document.getElementById('telefone').value.trim(), documento: document.getElementById('documento').value.trim(),
+                clienteNovo: document.getElementById('clienteNovo').value, endereco: document.getElementById('endereco').value.trim(),
+                dataPedido: document.getElementById('dataPedido').value, dataRetirada: document.getElementById('dataRetirada').value,
+                diasLocacao: parseInt(document.getElementById('diasDevolucao').value, 10) || 0, dataDevolucao: document.getElementById('dataDevolucao').value,
+                dataColeta: document.getElementById('dataColeta').value, valor: parseFloat(document.getElementById('valor').value) || 0,
+                pagamento: document.getElementById('pagamento').value, formaPagamento: document.getElementById('formaPagamento').value,
+                contaPagamento: document.getElementById('contaPagamento').value.trim(), destinoDescarte: document.getElementById('destinoDescarte').value.trim(),
+                dataDescarga: document.getElementById('dataDescarga').value, dataPagamentoUsina: document.getElementById('dataPagamentoUsina').value,
+                valorUsina: parseFloat(document.getElementById('valorUsina').value) || 0, observacoes: document.getElementById('observacoes').value.trim()
+            };
+        }
+
+        function validarPedido(dados) {
+            if (!dados.cliente) { showToast('Informe o cliente.', 'error'); return false; }
+            if (!dados.dataRetirada) { showToast('Informe a data de colocação para incluir o pedido na agenda.', 'error'); return false; }
+            return true;
+        }
+
+        function salvarPedido(dados, idExistente) {
+            const existente = pedidos.find(p => p.id === idExistente);
+            const id = idExistente || generateId();
+            const pedido = { ...existente, ...dados, id, numero:'', status:'Agendado', criadoEm: existente?.criadoEm || new Date().toISOString(), atualizadoEm: new Date().toISOString() };
+            PEDIDOS_REF.child(id).set(pedido).then(() => {
+                const idx = pedidos.findIndex(p => p.id === id);
+                if (idx >= 0) pedidos[idx] = pedido; else pedidos.push(pedido);
+                atualizarCadastroDaLocacao(pedido); renderizarTudo(); showPage('dashboard');
+                showToast('✅ Pedido salvo sem número de caçamba.', 'success');
+            }).catch(err => showToast('❌ Erro ao salvar pedido: ' + err.message, 'error'));
+        }
+
+        function atribuirPedidoACacamba(dados, pedidoId) {
+            const numero = String(dados.numero);
+            const targetIdx = clients.findIndex(c => String(c.numero) === numero);
+            if (targetIdx === -1) { showToast('Escolha uma caçamba entre 0 e 15.', 'error'); return; }
+            const alvo = clients[targetIdx];
+            if (alvo.status !== 'Disponível' || alvo.cliente) { showToast(`A caçamba ${numero} não está disponível.`, 'error'); return; }
+            const pedidoAnterior = pedidos.find(p => p.id === pedidoId);
+            const idPedido = pedidoId || generateId();
+            const locacao = { ...pedidoAnterior, ...dados, id: alvo.id, numero: alvo.numero, pedidoId: idPedido, status:'Programada', criadoEm: pedidoAnterior?.criadoEm || new Date().toISOString(), atualizadoEm: new Date().toISOString() };
+            const updates = {};
+            updates[`clientes/${alvo.id}`] = locacao;
+            updates[`pedidos/${idPedido}`] = null;
+            database.ref().update(updates).then(() => {
+                clients[targetIdx] = locacao;
+                pedidos = pedidos.filter(p => p.id !== idPedido);
+                atualizarCadastroDaLocacao(locacao); renderizarTudo(); showPage('dashboard');
+                showToast(`✅ Pedido atribuído à caçamba ${numero}.`, 'success');
+            }).catch(err => showToast('❌ Erro ao atribuir caçamba: ' + err.message, 'error'));
+        }
+
+        function salvarCacambaEditada(dados, id) {
+            const idx = clients.findIndex(c => c.id === id); if (idx === -1) { showToast('Caçamba não encontrada.', 'error'); return; }
+            if (dados.numero === '') { showToast('Informe o número da caçamba.', 'error'); return; }
+            const targetIdx = clients.findIndex(c => String(c.numero) === String(dados.numero));
+            if (targetIdx === -1) { showToast('Escolha uma caçamba entre 0 e 15.', 'error'); return; }
+            if (targetIdx !== idx && (clients[targetIdx].status !== 'Disponível' || clients[targetIdx].cliente)) { showToast(`A caçamba ${dados.numero} não está disponível.`, 'error'); return; }
+            let status = dados.status;
+            if (dados.cliente && ['Disponível','Manutenção','Inativo','Agendado'].includes(status)) status = 'Programada';
+            if (!dados.cliente && !['Manutenção','Inativo'].includes(status)) status = 'Disponível';
+            const destino = clients[targetIdx];
+            const atualizado = { ...clients[idx], ...dados, id: destino.id, numero: destino.numero, status, atualizadoEm: new Date().toISOString() };
+            const updates = {};
+            updates[`clientes/${destino.id}`] = atualizado;
+            if (targetIdx !== idx) updates[`clientes/${clients[idx].id}`] = criarCacambaVazia(clients[idx]);
+            database.ref().update(updates).then(() => {
+                if (targetIdx !== idx) clients[idx] = criarCacambaVazia(clients[idx]);
+                clients[targetIdx] = atualizado;
+                atualizarCadastroDaLocacao(atualizado); renderizarTudo(); showPage('dashboard');
+                showToast('✅ Caçamba atualizada com sucesso.', 'success');
+            }).catch(err => showToast('❌ Erro ao atualizar caçamba: ' + err.message, 'error'));
         }
 
         function saveClient(e) {
             e.preventDefault();
             const id = document.getElementById('editId').value;
-            if (!id) {
-                showToast('❌ Não é possível criar novas caçambas. Edite uma existente.', 'error');
-                return;
-            }
-            const numero = document.getElementById('numero').value.trim();
-            const status = document.getElementById('status').value;
-            const cliente = document.getElementById('cliente').value.trim();
-            const telefone = document.getElementById('telefone').value.trim();
-            const documento = document.getElementById('documento').value.trim();
-            const clienteNovo = document.getElementById('clienteNovo').value;
-            const endereco = document.getElementById('endereco').value.trim();
-            const dataPedido = document.getElementById('dataPedido').value;
-            const dataRetirada = document.getElementById('dataRetirada').value;
-            const diasLocacao = parseInt(document.getElementById('diasDevolucao').value, 10) || 0;
-            const dataDevolucao = document.getElementById('dataDevolucao').value;
-            const dataColeta = document.getElementById('dataColeta').value;
-            const valor = parseFloat(document.getElementById('valor').value) || 0;
-            const pagamento = document.getElementById('pagamento').value;
-            const formaPagamento = document.getElementById('formaPagamento').value;
-            const contaPagamento = document.getElementById('contaPagamento').value.trim();
-            const destinoDescarte = document.getElementById('destinoDescarte').value;
-            const dataDescarga = document.getElementById('dataDescarga').value;
-            const dataPagamentoUsina = document.getElementById('dataPagamentoUsina').value;
-            const valorUsina = parseFloat(document.getElementById('valorUsina').value) || 0;
-            const observacoes = document.getElementById('observacoes').value.trim();
-            if (!numero) { showToast('Preencha o número da caçamba.', 'error'); return; }
-            const idx = clients.findIndex(c => c.id === id);
-            if (idx === -1) { showToast('Caçamba não encontrada.', 'error'); return; }
-            clients[idx].numero = numero;
-            clients[idx].status = status;
-            clients[idx].cliente = cliente;
-            clients[idx].telefone = telefone;
-            clients[idx].documento = documento;
-            clients[idx].clienteNovo = clienteNovo;
-            clients[idx].endereco = endereco;
-            clients[idx].dataPedido = dataPedido;
-            clients[idx].dataRetirada = dataRetirada;
-            clients[idx].diasLocacao = diasLocacao;
-            clients[idx].dataDevolucao = dataDevolucao;
-            clients[idx].dataColeta = dataColeta;
-            clients[idx].valor = valor;
-            clients[idx].pagamento = pagamento;
-            clients[idx].formaPagamento = formaPagamento;
-            clients[idx].contaPagamento = contaPagamento;
-            clients[idx].destinoDescarte = destinoDescarte;
-            clients[idx].dataDescarga = dataDescarga;
-            clients[idx].dataPagamentoUsina = dataPagamentoUsina;
-            clients[idx].valorUsina = valorUsina;
-            clients[idx].observacoes = observacoes;
-            atualizarCadastroDaLocacao(clients[idx]);
-            salvarClientes();
-            showToast('Caçamba atualizada com sucesso!', 'success');
-            showPage('dashboard');
+            const tipo = document.getElementById('editType').value;
+            const dados = lerDadosFormulario();
+            if (tipo === 'pedido') {
+                if (!validarPedido(dados)) return;
+                if (dados.numero === '') salvarPedido(dados, id); else atribuirPedidoACacamba(dados, id);
+            } else salvarCacambaEditada(dados, id);
         }
 
-        function entregarDaEdicao() {
+        function confirmarColocacaoDaEdicao() {
             const id = document.getElementById('editId').value;
             if (!id) return;
-            entregarCaçamba(id);
+            const idx = clients.findIndex(c => c.id === id); if (idx === -1) return;
+            const dados = lerDadosFormulario();
+            if (String(dados.numero) !== String(clients[idx].numero)) { showToast('Salve a troca do número antes de confirmar a colocação.', 'error'); return; }
+            if (!dados.cliente) { showToast('Informe o cliente.', 'error'); return; }
+            if (!confirm(`Confirmar que a caçamba ${clients[idx].numero} foi colocada para ${dados.cliente}?`)) return;
+            const atualizado = { ...clients[idx], ...dados, id, numero:clients[idx].numero, status:'Entregue', colocadaEm:new Date().toISOString() };
+            CLIENTES_REF.child(id).set(atualizado).then(() => {
+                clients[idx] = atualizado; atualizarCadastroDaLocacao(atualizado); renderizarTudo(); showPage('dashboard');
+                showToast(`✅ Caçamba ${atualizado.numero} registrada no cliente.`, 'success');
+            }).catch(err => showToast('❌ Erro ao confirmar colocação: ' + err.message, 'error'));
+        }
+
+        function retirarDaEdicao() {
+            const id = document.getElementById('editId').value;
+            if (!id) return;
+            retirarCacamba(id, lerDadosFormulario());
         }
 
         // ─── MOBILE MENU ───
@@ -1288,6 +1529,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             updateApiStatus();
             document.getElementById('apiKeyInput').value = loadApiKey();
+            document.getElementById('agendaDateInput').value = document.getElementById('agendaDateInput').value || getTodayString();
             document.getElementById('dataRetirada').addEventListener('change', calcularDevolucao);
             document.getElementById('diasDevolucao').addEventListener('input', calcularDevolucao);
         });
@@ -1312,7 +1554,12 @@
 
         CADASTRO_CLIENTES_REF.on('value', (snapshot) => {
             const data = snapshot.val(); cadastroClientes = data ? Object.values(data) : [];
-            renderCadastroClientes();
+            renderCadastroClientes(); renderClientesDatalist();
+        });
+
+        PEDIDOS_REF.on('value', (snapshot) => {
+            const data = snapshot.val(); pedidos = data ? Object.values(data) : [];
+            renderPedidos(); renderStats(); renderAgenda();
         });
     </script>
 </body>
