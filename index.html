@@ -2040,7 +2040,7 @@
         } else document.getElementById('dataDevolucao').value = '';
     }
 
-    function loadApiKey() { return localStorage.getItem(API_KEY_STORAGE) || ''; }
+    function loadApiKey() { return localStorage.getItem(API_KEY_STORAGE) || window.CHAMA_CONFIG?.googleMapsApiKey || ''; }
     function saveApiKey(key) {
         localStorage.setItem(API_KEY_STORAGE, key.trim());
         updateApiStatus();
