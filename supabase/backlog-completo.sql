@@ -74,6 +74,8 @@ create policy financeiro_admin on public.financeiro for all to authenticated
 using (public.usuario_eh_admin()) with check (public.usuario_eh_admin());
 drop policy if exists alertas_authenticated on public.alertas;
 create policy alertas_authenticated on public.alertas for select to authenticated using (public.usuario_eh_admin());
+drop policy if exists alertas_admin_insert on public.alertas;
+create policy alertas_admin_insert on public.alertas for insert to authenticated with check (public.usuario_eh_admin());
 drop policy if exists rastreamento_authenticated on public.rastreamento_cacambas;
 create policy rastreamento_authenticated on public.rastreamento_cacambas for all to authenticated
 using (true) with check (auth.uid() is not null);

@@ -308,6 +308,7 @@
         <a data-page="financeiro" id="menuFinanceiro" onclick="showPage('financeiro')" style="display:none;"><span class="icon">💰</span><span>Financeiro</span></a>
         <a data-page="usuarios" id="menuUsuarios" onclick="showPage('usuarios')" style="display:none;"><span class="icon">🔐</span><span>Usuários</span></a>
         <a data-page="auditoria" id="menuAuditoria" onclick="showPage('auditoria')" style="display:none;"><span class="icon">🔎</span><span>Auditoria</span></a>
+        <a data-page="alertas-email" id="menuAlertasEmail" onclick="showPage('alertas-email')" style="display:none;"><span class="icon">✉️</span><span>Alertas por e-mail</span></a>
     </nav>
     <div class="sidebar-footer">
         <div id="usuarioLogado" style="font-size:0.55rem;color:rgba(232,227,220,0.5);margin-bottom:0.5rem;word-break:break-all;line-height:1.4;"></div>
@@ -584,6 +585,19 @@
             <div class="panel-header"><span class="panel-title">Eventos registrados</span><span style="font-size:0.7rem;color:var(--text-light);" id="auditRegistros">0 registros</span></div>
             <div class="table-wrap"><table><thead><tr><th>Data/hora</th><th>Operação</th><th>Usuário</th><th>Locação</th><th>Campo</th><th>Valor anterior</th><th>Valor novo</th></tr></thead><tbody id="auditoriaBody"></tbody></table></div>
         </div>
+    </section>
+
+    <!-- ALERTAS POR E-MAIL (somente admin) -->
+    <section id="page-alertas-email" class="form-page">
+        <div class="topbar"><div class="topbar-left"><h1>✉️ Alertas por e-mail</h1><p>Crie e acompanhe notificações enviadas pelo Resend</p></div><button class="btn-secondary" onclick="showPage('dashboard')">← Voltar</button></div>
+        <div class="panel" style="padding:1.5rem;margin-bottom:1.5rem;">
+            <div class="panel-title" style="margin-bottom:1rem;">Criar alerta</div>
+            <div class="form-row"><div class="form-group"><label>Tipo</label><input id="alertaTipo" value="operacional"></div><div class="form-group"><label>Destinatário</label><input id="alertaDestinatario" type="email" value="salespietrop@gmail.com"></div></div>
+            <div class="form-group"><label>Mensagem *</label><textarea id="alertaMensagem" rows="3" placeholder="Digite a mensagem do alerta"></textarea></div>
+            <button class="btn-primary" onclick="criarAlertaEmail()">✉️ Enfileirar envio</button>
+            <span style="font-size:.72rem;color:var(--text-light);margin-left:1rem;">O envio ocorre automaticamente em até 5 minutos.</span>
+        </div>
+        <div class="panel"><div class="panel-header"><span class="panel-title">Fila de alertas</span><button class="btn-secondary" onclick="renderAlertasEmail()">↻ Atualizar</button></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Tipo</th><th>Destinatário</th><th>Mensagem</th><th>Status</th></tr></thead><tbody id="alertasEmailBody"></tbody></table></div></div>
     </section>
 
     <!-- USUÁRIOS (somente admin) -->
@@ -954,10 +968,15 @@
             const { data, error } = await supabaseClient.from('perfis').select('*').eq('user_id', userId).single();
             if (error) throw error;
             perfilAtual = data;
+            // Fonte de autoridade para o papel: função SECURITY DEFINER do banco.
+            // Isso evita que uma política RLS antiga faça um admin cair no fallback operador.
+            const { data: roleRpc } = await supabaseClient.rpc('get_my_role');
+            if (roleRpc) perfilAtual.role = roleRpc;
             return data;
         } catch (err) {
             console.warn('Perfil não encontrado, usando padrão operador:', err.message);
-            perfilAtual = { user_id: userId, email: '', nome: '', role: 'operador', ativo: true };
+            const { data: roleRpc } = await supabaseClient.rpc('get_my_role');
+            perfilAtual = { user_id: userId, email: '', nome: '', role: roleRpc || 'operador', ativo: true };
             return perfilAtual;
         }
     }
@@ -976,6 +995,8 @@
         if (menuUsuarios) menuUsuarios.style.display = isAdmin() ? '' : 'none';
         const menuAuditoria = document.getElementById('menuAuditoria');
         if (menuAuditoria) menuAuditoria.style.display = isAdmin() ? '' : 'none';
+        const menuAlertasEmail = document.getElementById('menuAlertasEmail');
+        if (menuAlertasEmail) menuAlertasEmail.style.display = isAdmin() ? '' : 'none';
         const menuFinanceiro = document.getElementById('menuFinanceiro');
         if (menuFinanceiro) menuFinanceiro.style.display = podeVerFinanceiro() ? '' : 'none';
 
@@ -1097,6 +1118,28 @@
                 <td title="${escapeHtml(valorAuditoria(item.valor_novo))}">${escapeHtml(valorAuditoria(item.valor_novo))}</td>
             </tr>
         `).join('');
+    }
+
+    async function renderAlertasEmail() {
+        if (!isAdmin()) return;
+        const body = document.getElementById('alertasEmailBody'); if (!body) return;
+        body.innerHTML = '<tr><td colspan="5">Carregando...</td></tr>';
+        const { data, error } = await supabaseClient.from('alertas').select('*').order('criado_em', { ascending: false }).limit(100);
+        if (error) { body.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">${escapeHtml(error.message)}</td></tr>`; return; }
+        body.innerHTML = data?.length ? data.map(a => `<tr><td>${escapeHtml(formatDateTime(a.criado_em))}</td><td>${escapeHtml(a.tipo)}</td><td>${escapeHtml(a.destinatario)}</td><td>${escapeHtml(a.mensagem)}</td><td>${escapeHtml(a.status)}</td></tr>`).join('') : '<tr><td colspan="5">Nenhum alerta na fila.</td></tr>';
+    }
+
+    async function criarAlertaEmail() {
+        if (!isAdmin()) return showToast('❌ Apenas admins.', 'error');
+        const tipo = document.getElementById('alertaTipo').value.trim() || 'operacional';
+        const destinatario = document.getElementById('alertaDestinatario').value.trim();
+        const mensagem = document.getElementById('alertaMensagem').value.trim();
+        if (!destinatario || !mensagem) return showToast('Informe destinatário e mensagem.', 'error');
+        const { error } = await supabaseClient.from('alertas').insert({ tipo, destinatario, mensagem, status: 'pendente' });
+        if (error) return showToast('❌ ' + error.message, 'error');
+        document.getElementById('alertaMensagem').value = '';
+        showToast('✅ Alerta enfileirado. Será enviado em até 5 minutos.', 'success');
+        renderAlertasEmail();
     }
 
     async function renderManutencao() {
@@ -2101,6 +2144,11 @@
             document.getElementById('page-auditoria').style.display = 'block';
             document.getElementById('page-auditoria').classList.add('active');
             renderAuditoria();
+        } else if (page === 'alertas-email') {
+            if (!isAdmin()) { showToast('❌ Apenas admins podem acessar os alertas.', 'error'); showPage('dashboard'); return; }
+            document.getElementById('page-alertas-email').style.display = 'block';
+            document.getElementById('page-alertas-email').classList.add('active');
+            renderAlertasEmail();
         } else if (page === 'manutencao') {
             document.getElementById('page-manutencao').style.display = 'block';
             document.getElementById('page-manutencao').classList.add('active');
