@@ -1,0 +1,10 @@
+{
+  "name": "Chama Caçamba Gestão",
+  "short_name": "Chama Caçamba",
+  "start_url": "./index-auditoria.html",
+  "display": "standalone",
+  "background_color": "#171512",
+  "theme_color": "#c87941",
+  "lang": "pt-BR",
+  "icons": []
+}
